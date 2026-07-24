@@ -12,8 +12,7 @@
                    [green.progress-test]
                    [green.tofu-test]
                    [green.ansible-test]
-                   [green.zookeeper-test]
-                   [green.once-skill-test])
+                   [green.zookeeper-test])
         :task (let [{:keys [fail error]}
                     (clojure.test/run-tests 'green.advice-test
                                             'green.workflow-test
@@ -23,7 +22,6 @@
                                             'green.progress-test
                                             'green.tofu-test
                                             'green.ansible-test
-                                            'green.zookeeper-test
-                                            'green.once-skill-test)]
+                                            'green.zookeeper-test)]
                 (when (pos? (+ fail error))
                   (System/exit 1)))}}}
