@@ -14,8 +14,11 @@
 (def ^:private apply-args ["apply" "-auto-approve" "-input=false" "-no-color"])
 (def ^:private destroy-args ["destroy" "-auto-approve" "-input=false" "-no-color"])
 
-(defn- tofu! [dir & args]
-  (apply sh/sh "tofu" (concat args [:dir dir])))
+(defn- env-with [extra]
+  (merge (into {} (System/getenv)) extra))
+
+(defn- tofu! [dir env & args]
+  (apply sh/sh "tofu" (concat args [:dir dir :env env])))
 
 (defn- action-args [delete?]
   (if delete? destroy-args apply-args))
@@ -36,26 +39,31 @@
 
 (defn outputs
   "Parse `tofu output -json` in `dir` into a plain map of keyword -> value."
-  [dir]
-  (let [{:keys [exit out err]} (tofu! dir "output" "-json")]
-    (when (pos? exit)
-      (throw (ex-info (str "tofu output failed: " err) {:dir dir})))
-    (parse-outputs out)))
+  ([dir] (outputs dir nil))
+  ([dir env]
+   (let [{:keys [exit out err]} (tofu! dir env "output" "-json")]
+     (when (pos? exit)
+       (throw (ex-info (str "tofu output failed: " err) {:dir dir})))
+     (parse-outputs out))))
 
 (defn tofu-step
   "Run OpenTofu in `dir` according to :green/event. On success, apply merges
-  the outputs under `output-key` (default :tofu/outputs) — never top-level."
-  [opts {:keys [dir output-key] :or {output-key :tofu/outputs}}]
+  the outputs under `output-key` (default :tofu/outputs) — never top-level.
+  `env` adds variables to the tofu process environment — typically provider
+  credentials, so they never have to be rendered into .tf files. Without it
+  the environment is left untouched."
+  [opts {:keys [dir output-key env] :or {output-key :tofu/outputs}}]
   (let [delete? (= :delete (:green/event opts))
-        init (apply tofu! dir init-args)]
+        env (some-> env env-with)
+        init (apply tofu! dir env init-args)]
     (if (failed? init)
       (fail opts init "init")
       (let [cmd (action-args delete?)
-            res (apply tofu! dir cmd)]
+            res (apply tofu! dir env cmd)]
         (cond
           (failed? res) (fail opts res (first cmd))
           delete? (assoc opts :green/exit 0)
-          :else (assoc opts :green/exit 0 output-key (outputs dir)))))))
+          :else (assoc opts :green/exit 0 output-key (outputs dir env)))))))
 
 (defn- json-key [k]
   (if (keyword? k) (name k) (str k)))
