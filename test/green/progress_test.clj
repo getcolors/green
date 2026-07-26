@@ -1,6 +1,6 @@
 (ns green.progress-test
   (:require [clojure.string :as str]
-            [clojure.test :refer [deftest is testing]]
+            [clojure.test :refer [deftest is]]
             [green.progress :as progress]
             [green.workflow :as wf]))
 
