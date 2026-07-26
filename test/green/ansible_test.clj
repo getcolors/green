@@ -2,12 +2,14 @@
   "Playbook selection, recap parsing, inventory rendering, and
   ansible-with-spec scaffolding need no ansible binary — only
   `ansible-step` itself shells out."
-  (:require [clojure.java.io :as io]
-            [clojure.java.shell :as sh]
-            [clojure.test :refer [deftest is testing]]
-            [green.ansible :as ansible])
-  (:import [java.nio.file Files]
-           [java.nio.file.attribute FileAttribute]))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.java.shell :as sh]
+   [clojure.test :refer [deftest is testing]]
+   [green.ansible :as ansible])
+  (:import
+   [java.nio.file Files]
+   [java.nio.file.attribute FileAttribute]))
 
 (defn- tmpdir []
   (str (Files/createTempDirectory "green-ansible" (make-array FileAttribute 0))))
@@ -114,16 +116,33 @@
                {:template :greentest/ansible.cfg
                 :target (str dir "/ansible.cfg")
                 :data {:inventory "inventory.ini"
-                       :host_key_checking "False"}}]]
-    (spit (str dir "/create.yml") "placeholder")
-    (spit (str dir "/ansible.cfg") "placeholder")
-    (with-redefs [sh/sh stub-sh]
+                       :host_key_checking "False"}}]
+        present (atom nil)]
+    (with-redefs [sh/sh (fn [& args]
+                          ;; the teardown play cannot run from files that
+                          ;; have already been deleted
+                          (reset! present (.exists (io/file dir "create.yml")))
+                          (apply stub-sh args))]
+      (testing "ansible-step ran the delete playbook"
+        (is (= 0 (:green/exit (ansible/ansible-with-spec
+                               {:green/event :delete}
+                               {:dir dir :inventory "inventory.ini"}
+                               specs)))))
+      (testing "the scaffold was rendered before the play ran"
+        (is (true? @present)))
+      (testing "scaffolded files are removed afterwards"
+        (is (not (.exists (io/file dir "create.yml"))))
+        (is (not (.exists (io/file dir "ansible.cfg"))))))))
+
+(deftest ansible-with-spec-renders-only-on-build
+  (let [dir (tmpdir)
+        specs [{:template :greentest/create.yml
+                :target (str dir "/create.yml")
+                :data {:group "web" :name "test"}}]]
+    (with-redefs [sh/sh (fn [& _] (throw (ex-info "ansible must not run" {})))]
       (let [opts (ansible/ansible-with-spec
-                  {:green/event :delete}
+                  {:green/event :build}
                   {:dir dir :inventory "inventory.ini"}
                   specs)]
-        (testing "ansible-step ran the delete playbook"
-          (is (= 0 (:green/exit opts))))
-        (testing "scaffolded files are removed"
-          (is (not (.exists (io/file dir "create.yml"))))
-          (is (not (.exists (io/file dir "ansible.cfg")))))))))
+        (is (= 0 (:green/exit opts)))
+        (is (.exists (io/file dir "create.yml")))))))

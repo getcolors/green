@@ -6,11 +6,12 @@
   default). The inventory is not hardwired: attach `inventory-advice` as a
   :before advice to write an INI inventory from a function of opts before
   the step runs, the way green.tofu attaches backends."
-  (:require [cheshire.core :as json]
-            [clojure.java.io :as io]
-            [clojure.java.shell :as sh]
-            [clojure.string :as str]
-            [green.scaffold :as sc]))
+  (:require
+   [cheshire.core :as json]
+   [clojure.java.io :as io]
+   [clojure.java.shell :as sh]
+   [clojure.string :as str]
+   [green.scaffold :as sc]))
 
 (def default-playbooks
   "Event -> playbook file, relative to the step's :dir."
@@ -90,14 +91,30 @@
 
 (defn ansible-with-spec
   "Scaffold ansible config files (playbooks, ansible.cfg, …) then run
-  ansible-playbook (create); or run ansible-playbook then remove the
-  scaffolded files (delete). Mirrors the tofu-with-spec pattern."
+  ansible-playbook; or, on :green/event :delete, scaffold, run the delete
+  playbook, and only then remove the rendered tree.
+
+  Deleting renders first because ansible-playbook cannot run a playbook that
+  has already been deleted — the teardown play is itself one of the
+  scaffolded files. The render is done under :green/event :create so the specs
+  materialize rather than delete; the event the playbook sees is unchanged.
+
+  :green/event :build renders and stops, for a command that shows what would
+  be written without reaching a host. Mirrors `green.tofu/tofu-with-spec`."
   [opts ansible-config specs]
-  (if (= :delete (:green/event opts))
-    (let [opts (ansible-step opts ansible-config)]
-      (if (pos? (:green/exit opts 0)) opts (sc/scaffold opts specs)))
-    (let [opts (sc/scaffold opts specs)]
-      (ansible-step opts ansible-config))))
+  (case (:green/event opts)
+    :build (sc/scaffold opts specs)
+
+    :delete (let [rendered (-> opts
+                               (assoc :green/event :create)
+                               (sc/scaffold specs)
+                               (assoc :green/event :delete))
+                  result (ansible-step rendered ansible-config)]
+              (if (pos? (:green/exit result 0))
+                result
+                (sc/scaffold result specs)))
+
+    (ansible-step (sc/scaffold opts specs) ansible-config)))
 
 ;; --- inventory ------------------------------------------------------------
 
