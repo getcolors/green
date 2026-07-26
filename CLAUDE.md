@@ -257,14 +257,15 @@ Ten main namespaces under `src/green/`:
   step; it prints the step name on entry and elapsed time on exit, reading
   `:green/step` from opts. Takes only the workflow as argument (no step list
   needed, unlike dry-run).
-- **`cli.clj`** — the thinnest layer: parses `<event> [-f|--file green.edn]
-  [--start step] [--end step] [--dry-run]`, loads the desired-state EDN
-  file, overlays `GREEN_PAR_*`, stamps `:green/event`, and calls `wf/run`.
+- **`cli.clj`** — the thinnest layer: parses `<event> [-f|--file green.yml]
+  [--start step] [--end step] [--dry-run]`, loads the desired-state file as
+  YAML or EDN by its extension, overlays `COLORS_PAR_*`, stamps
+  `:green/event`, and calls `wf/run`.
   `cli/exec` is what a project's `./green` babashka script calls;
   `cli/run-cli` is the testable, non-exiting version. `read-pars` is the
   secret channel: desired state is a file on disk and must never hold
   credentials, so every flat key can be supplied by an environment variable
-  instead (`:do-token` ← `GREEN_PAR_DO_TOKEN`), coerced to the type of the
+  instead (`:do-token` ← `COLORS_PAR_DO_TOKEN`), coerced to the type of the
   value it replaces. It is idempotent, so a project may re-apply it in a
   validation step without caring whether the CLI already did.
 - **`process.clj`** — shelling out with a timeout that actually stops the

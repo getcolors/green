@@ -1,23 +1,29 @@
 (ns green.cli
-  "CLI plumbing: `./green <event> [-f|--file green.edn] [--start step]
+  "CLI plumbing: `./green <event> [-f|--file green.yml] [--start step]
   [--end step]`. The first positional argument is the lifecycle event,
   stamped into opts as :green/event. --start/--end run a slice of the graph.
 
-  Desired state is EDN on disk, so it cannot hold secrets. `GREEN_PAR_*`
-  environment variables fill that gap: each one overlays the matching flat key
-  after the file is read, and `run-cli` applies them for you."
+  Desired state is YAML or EDN on disk, selected by the file's extension, so
+  it cannot hold secrets. `COLORS_PAR_*` environment variables fill that gap:
+  each one overlays the matching flat key after the file is read, and `run-cli`
+  applies them for you. The prefix is shared by every colour, so the same
+  variable reaches green, red and blue alike."
   (:require
    [babashka.cli :as cli]
    [clojure.edn :as edn]
    [clojure.java.io :as io]
    [clojure.string :as str]
-   [green.workflow :as wf]))
+   [green.workflow :as wf]
+   [yamlstar.core :as yaml]))
 
-(def ^:private par-prefix "GREEN_PAR_")
+(def ^:private par-prefix
+  "The parameter namespace every colour shares, so one variable serves green,
+  red and blue without naming any of them."
+  "COLORS_PAR_")
 
 (defn par-name
-  "The `GREEN_PAR_*` environment variable that supplies flat key `k`:
-  uppercased, hyphens as underscores. :do-token -> GREEN_PAR_DO_TOKEN."
+  "The `COLORS_PAR_*` environment variable that supplies flat key `k`:
+  uppercased, hyphens as underscores. :do-token -> COLORS_PAR_DO_TOKEN."
   [k]
   (str par-prefix (-> (name k) str/upper-case (str/replace "-" "_"))))
 
@@ -31,7 +37,7 @@
 
 (defn- coerce
   "Environment variables are strings; match the type of the value already in
-  opts so a boolean key stays a boolean. Without this, GREEN_PAR_X=false would
+  opts so a boolean key stays a boolean. Without this, COLORS_PAR_X=false would
   overlay the truthy string \"false\"."
   [old value]
   (cond
@@ -43,9 +49,9 @@
     :else value))
 
 (defn read-pars
-  "Overlay `GREEN_PAR_*` environment variables onto flat keys in `opts`.
+  "Overlay `COLORS_PAR_*` environment variables onto flat keys in `opts`.
 
-  `GREEN_PAR_DO_TOKEN=xxx` becomes `{:do-token \"xxx\"}`. This is how secrets
+  `COLORS_PAR_DO_TOKEN=xxx` becomes `{:do-token \"xxx\"}`. This is how secrets
   reach a workflow without being written to the desired-state file. Overrides
   are coerced to the type of the value they replace, and applying them twice
   changes nothing."
@@ -61,19 +67,45 @@
               opts
               env)))
 
+(defn- keywordize
+  "YAML gives string keys; desired state is addressed by keyword throughout,
+  the way the EDN reader already delivered it. Applied to every map in the
+  tree, so nested collections read the same as flat ones."
+  [x]
+  (cond
+    (map? x) (reduce-kv (fn [m k v]
+                          (assoc m (cond-> k (string? k) keyword) (keywordize v)))
+                        {}
+                        x)
+    (sequential? x) (mapv keywordize x)
+    :else x))
+
+(defn read-state
+  "Parse desired-state `text` written in `file`'s language: YAML for .yml and
+  .yaml, EDN otherwise. YAML is read by yamlstar, whose 1.2 core schema leaves
+  `no`, `yes` and `on` as the strings they look like."
+  [file text]
+  (if (re-find #"(?i)\.ya?ml$" (str file))
+    (keywordize (yaml/load text))
+    (edn/read-string text)))
+
 (def ^:private cli-spec
-  {:file {:alias :f :default "green.edn" :desc "Desired state EDN file"}
+  {:file {:alias :f :default "green.yml" :desc "Desired state file (YAML, or EDN by extension)"}
    :start {:coerce :keyword :desc "Override the workflow start step"}
    :end {:coerce :keyword :desc "Override the workflow end step (slice boundary)"}
    :dry-run {:coerce :boolean :desc "Stamp :green/dry-run — steps advised with green.dry-run are skipped"}})
 
 (def usage
-  "Usage: green <event> [-f|--file green.edn] [--start step] [--end step] [--dry-run]")
+  "Usage: green <event> [-f|--file green.yml] [--start step] [--end step] [--dry-run]")
 
 (defn run-cli
-  "Parse `args`, load the desired state, overlay `GREEN_PAR_*`, stamp
-  :green/event, run `workflow`. Returns the final opts map (:green/exit 2 on
-  usage/state-file errors)."
+  "Parse `args`, load the desired state, overlay `COLORS_PAR_*`, stamp
+  :green/event and :green/state-file, run `workflow`. Returns the final opts
+  map (:green/exit 2 on usage/state-file errors).
+
+  :green/state-file is the absolute path the state was read from, so a project
+  can resolve its own relative paths against the file rather than against
+  whatever directory the command happened to run in."
   ([workflow] (run-cli workflow *command-line-args*))
   ([workflow args]
    (try
@@ -84,7 +116,9 @@
          (let [file (io/file (:file opts))]
            (if-not (.exists file)
              {:green/exit 2 :green/err (str "desired state file not found: " file)}
-             (let [state (read-pars (edn/read-string (slurp file)))
+             (let [state (-> (read-state file (slurp file))
+                             (assoc :green/state-file (.getAbsolutePath file))
+                             read-pars)
                    workflow (cond-> workflow
                               (:start opts) (assoc :green.workflow/start (:start opts))
                               (:end opts) (assoc :green.workflow/end (:end opts)))]

@@ -6,10 +6,12 @@
   (:import
    [java.io File]))
 
-(defn- state-file [content]
-  (let [f (File/createTempFile "green-state" ".edn")]
-    (spit f content)
-    (str f)))
+(defn- state-file
+  ([content] (state-file content ".edn"))
+  ([content ext]
+   (let [f (File/createTempFile "green-state" ext)]
+     (spit f content)
+     (str f))))
 
 (defn- probe-wf []
   (wf/workflow {:start :t/a
@@ -54,32 +56,57 @@
       (is (= 2 (:green/exit res)))
       (is (re-find #"not found" (:green/err res))))))
 
-(deftest green-par-variables-overlay-desired-state
+(deftest colors-par-variables-overlay-desired-state
   (testing "the file supplies structure, the environment supplies secrets"
     (is (= {:do-token "tok" :profile "prod"}
-           (cli/read-pars {:profile "prod"} {"GREEN_PAR_DO_TOKEN" "tok"
+           (cli/read-pars {:profile "prod"} {"COLORS_PAR_DO_TOKEN" "tok"
                                              "PATH" "/usr/bin"}))))
 
   (testing "hyphens in the key are underscores in the variable"
-    (is (= "GREEN_PAR_R2_ACCESS_KEY_ID" (cli/par-name :r2-access-key-id)))
+    (is (= "COLORS_PAR_R2_ACCESS_KEY_ID" (cli/par-name :r2-access-key-id)))
     (is (= {:r2-access-key-id "id"}
-           (cli/read-pars {} {"GREEN_PAR_R2_ACCESS_KEY_ID" "id"}))))
+           (cli/read-pars {} {"COLORS_PAR_R2_ACCESS_KEY_ID" "id"}))))
 
   (testing "an override takes the type of the value it replaces"
     (is (= {:prevent-destroy false}
            (cli/read-pars {:prevent-destroy true}
-                          {"GREEN_PAR_PREVENT_DESTROY" "false"})))
+                          {"COLORS_PAR_PREVENT_DESTROY" "false"})))
     (is (= {:port 25}
-           (cli/read-pars {:port 587} {"GREEN_PAR_PORT" "25"})))
-    (is (= {:name "x"} (cli/read-pars {:name "y"} {"GREEN_PAR_NAME" "x"}))))
+           (cli/read-pars {:port 587} {"COLORS_PAR_PORT" "25"})))
+    (is (= {:name "x"} (cli/read-pars {:name "y"} {"COLORS_PAR_NAME" "x"}))))
 
   (testing "applying the overlay twice changes nothing"
-    (let [env {"GREEN_PAR_PREVENT_DESTROY" "false"}
+    (let [env {"COLORS_PAR_PREVENT_DESTROY" "false"}
           once (cli/read-pars {:prevent-destroy true} env)]
       (is (= once (cli/read-pars once env)))))
 
   (testing "the bare prefix is not a key"
-    (is (= {} (cli/read-pars {} {"GREEN_PAR_" "x"})))))
+    (is (= {} (cli/read-pars {} {"COLORS_PAR_" "x"}))))
+
+  (testing "no colour keeps a prefix of its own"
+    (is (= {} (cli/read-pars {} {"GREEN_PAR_DO_TOKEN" "tok"
+                                 "RED_PAR_DO_TOKEN" "tok"
+                                 "BLUE_PAR_DO_TOKEN" "tok"
+                                 "ONCE_PAR_DO_TOKEN" "tok"})))))
+
+(deftest desired-state-is-read-by-extension
+  (testing "yaml keys arrive as keywords, nesting included"
+    (is (= {:profile "prod" :once {:applications [{:host "www.example.com"}]}}
+           (cli/read-state "colors.yml"
+                           "profile: prod\nonce:\n  applications:\n    - host: www.example.com\n"))))
+
+  (testing "the 1.2 core schema leaves no/yes/on as the strings they look like"
+    (is (= {:a "no" :b "yes" :c "on" :d true :e 12}
+           (cli/read-state "colors.yaml" "a: no\nb: yes\nc: on\nd: true\ne: 012\n"))))
+
+  (testing "edn is still read, so existing projects keep working"
+    (is (= {:profile "prod" :port 587}
+           (cli/read-state "green.edn" "{:profile \"prod\" :port 587}"))))
+
+  (testing "run-cli reads a yaml state file end to end"
+    (let [res (cli/run-cli (probe-wf) ["create" "-f" (state-file "x: 3\n" ".yml")])]
+      (is (= 0 (:green/exit res)))
+      (is (= [[:a :create 3] :b] (:seen res))))))
 
 (deftest run-cli-overlays-pars-onto-the-state-file
   (let [wf (wf/workflow {:start :t/a
