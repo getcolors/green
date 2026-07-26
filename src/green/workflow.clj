@@ -22,8 +22,10 @@
     step names match flat at any depth, ancestor advice is outermost, and
     an ancestor entry replaces a same-id child entry. advice-plan shows
     the composed stack for a step."
-  (:require [green.advice :as advice])
-  (:import [java.io PrintWriter StringWriter]))
+  (:require
+   [green.advice :as advice])
+  (:import
+   [java.io PrintWriter StringWriter]))
 
 (defn workflow
   "Construct a workflow. :start is required; :end is an optional slice
@@ -116,7 +118,7 @@
                           (fn [m]
                             (into {} (map (fn [[k es]]
                                             [k (mapv #(assoc % :scope :step :level level) es)]))
-                              m)))
+                                  m)))
                   (update ::advice-all
                           (fn [es] (mapv #(assoc % :scope :all :level level) es)))))
         eff (reduce (fn [inherited [level wf]]
@@ -169,7 +171,11 @@
     (.printStackTrace t (PrintWriter. sw true))
     (str sw)))
 
-(defn- failed? [opts]
+(defn failed?
+  "Whether `opts` carries a failing outcome. Steps report failure through
+  :green/exit rather than by throwing, so this is the predicate a step composed
+  of several sub-steps uses to decide whether to keep going."
+  [opts]
   (pos? (:green/exit opts 0)))
 
 (defn- step-failure [opts ^Throwable t]

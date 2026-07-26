@@ -1,8 +1,10 @@
 (ns green.cli-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [green.cli :as cli]
-            [green.workflow :as wf])
-  (:import [java.io File]))
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [green.cli :as cli]
+   [green.workflow :as wf])
+  (:import
+   [java.io File]))
 
 (defn- state-file [content]
   (let [f (File/createTempFile "green-state" ".edn")]
@@ -51,3 +53,37 @@
     (let [res (cli/run-cli (probe-wf) ["create" "-f" "/nonexistent/green.edn"])]
       (is (= 2 (:green/exit res)))
       (is (re-find #"not found" (:green/err res))))))
+
+(deftest green-par-variables-overlay-desired-state
+  (testing "the file supplies structure, the environment supplies secrets"
+    (is (= {:do-token "tok" :profile "prod"}
+           (cli/read-pars {:profile "prod"} {"GREEN_PAR_DO_TOKEN" "tok"
+                                             "PATH" "/usr/bin"}))))
+
+  (testing "hyphens in the key are underscores in the variable"
+    (is (= "GREEN_PAR_R2_ACCESS_KEY_ID" (cli/par-name :r2-access-key-id)))
+    (is (= {:r2-access-key-id "id"}
+           (cli/read-pars {} {"GREEN_PAR_R2_ACCESS_KEY_ID" "id"}))))
+
+  (testing "an override takes the type of the value it replaces"
+    (is (= {:prevent-destroy false}
+           (cli/read-pars {:prevent-destroy true}
+                          {"GREEN_PAR_PREVENT_DESTROY" "false"})))
+    (is (= {:port 25}
+           (cli/read-pars {:port 587} {"GREEN_PAR_PORT" "25"})))
+    (is (= {:name "x"} (cli/read-pars {:name "y"} {"GREEN_PAR_NAME" "x"}))))
+
+  (testing "applying the overlay twice changes nothing"
+    (let [env {"GREEN_PAR_PREVENT_DESTROY" "false"}
+          once (cli/read-pars {:prevent-destroy true} env)]
+      (is (= once (cli/read-pars once env)))))
+
+  (testing "the bare prefix is not a key"
+    (is (= {} (cli/read-pars {} {"GREEN_PAR_" "x"})))))
+
+(deftest run-cli-overlays-pars-onto-the-state-file
+  (let [wf (wf/workflow {:start :t/a
+                         :wire-fn (fn [_ _] [(fn [o] (assoc o :seen (:token o)))])})]
+    (with-redefs [cli/read-pars (fn [opts] (assoc opts :token "from-env"))]
+      (is (= "from-env"
+             (:seen (cli/run-cli wf ["create" "-f" (state-file "{:token \"REPLACE_ME\"}")])))))))
