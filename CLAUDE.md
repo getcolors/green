@@ -116,7 +116,7 @@ validates. See its `README.md` and `PLAN.md`.
 
 ## Architecture
 
-Eight main namespaces under `src/green/`:
+Ten main namespaces under `src/green/`:
 
 - **`workflow.clj`** — the engine. A **step** is a plain function
   `opts -> opts`, named by a qualified keyword. A `wire-fn` (`step run-opts ->
@@ -222,8 +222,16 @@ Eight main namespaces under `src/green/`:
   callers can supply `:output-key` and should keep it namespaced),
   `:delete` → `init` + `destroy`. Backends are not
   hardwired — they're attached as `:before` advice
-  (`local-backend-advice`/`s3-backend-advice`/`gcs-backend-advice`) that
-  writes `backend.tf.json` before the step runs.
+  (`local-backend-advice`/`s3-backend-advice`/`gcs-backend-advice`/`r2-backend-advice`)
+  that writes `backend.tf.json` before the step runs; `backends` picks among
+  them per run so the backend can be desired state.
+  `tofu-with-spec` is the scaffold+run pairing: render the specs, run the
+  step, and on `:delete` render *first* so tofu has the `.tf` files
+  describing what it destroys, removing them only afterwards. `:build`
+  renders and stops. For generating `.tf.json` rather than templating it,
+  `construct`/`construct-name`/`deep-merge`/`constructs-json` build a merged,
+  sorted, byte-deterministic document, and `hcl-list`/`hcl-map` encode values
+  for interpolation into a `locals` block.
 - **`ansible.clj`** — event-aware Ansible steps, modeled on `tofu.clj`:
   any non-`:delete` event runs the `:create` playbook (`create.yml` by
   default), `:delete` runs the `:delete` one — both via `ansible-playbook`
@@ -236,6 +244,9 @@ Eight main namespaces under `src/green/`:
   `:before` advice writing an INI inventory from a function of opts,
   exactly like tofu's backend advices; `inventory-ini` renders
   `{group {:hosts [{:name .. :vars {..}}] :vars {..}}}` deterministically.
+  `ansible-with-spec` mirrors `tofu-with-spec`, including rendering before
+  running on `:delete` — the teardown play is itself one of the scaffolded
+  files, so deleting it first would leave nothing to run.
 - **`dry_run.clj`** — dry-run is built on the advice facility rather than
   hardwired into steps: `dry-run/advise` attaches `:around` advice (id
   `::skip`) to a list of steps; when `:green/dry-run` is set (stamped by
@@ -248,9 +259,24 @@ Eight main namespaces under `src/green/`:
   needed, unlike dry-run).
 - **`cli.clj`** — the thinnest layer: parses `<event> [-f|--file green.edn]
   [--start step] [--end step] [--dry-run]`, loads the desired-state EDN
-  file, stamps `:green/event`, and calls `wf/run`. `cli/exec` is what a
-  project's `./green` babashka script calls; `cli/run-cli` is the
-  testable, non-exiting version.
+  file, overlays `GREEN_PAR_*`, stamps `:green/event`, and calls `wf/run`.
+  `cli/exec` is what a project's `./green` babashka script calls;
+  `cli/run-cli` is the testable, non-exiting version. `read-pars` is the
+  secret channel: desired state is a file on disk and must never hold
+  credentials, so every flat key can be supplied by an environment variable
+  instead (`:do-token` ← `GREEN_PAR_DO_TOKEN`), coerced to the type of the
+  value it replaces. It is idempotent, so a project may re-apply it in a
+  validation step without caring whether the CLI already did.
+- **`process.clj`** — shelling out with a timeout that actually stops the
+  command: `run` returns `{:exit :out :err}`, `run-with-timeout` bounds the
+  wait and kills the whole process tree (a wrapper script cannot leave
+  children behind). Neither throws — a command that could not start reports
+  exit -1. `strip-ansi` makes captured output parseable. `clojure.java.shell/sh`
+  has no timeout, which is why anything that talks to a remote host should
+  use this instead.
+- **`yaml.clj`** — `generate-string` emits the small YAML subset a generated
+  Ansible file needs: block style, quoted string scalars, no anchors or
+  folding. Map order is preserved, so sorted input gives deterministic bytes.
 
 ## Conventions
 
