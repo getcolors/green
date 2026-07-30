@@ -1,4 +1,8 @@
 {:paths ["src" "resources" "test" "test-resources"]
+ ;; selmer, cheshire and babashka.cli are built into babashka; yamlstar is not,
+ ;; so it must be declared here as well as in deps.edn. Keep the version in
+ ;; lockstep with deps.edn — it is pinned exactly on purpose.
+ :deps {org.yamlstar/yamlstar {:mvn/version "0.1.17"}}
  :tasks
  {docco {:doc "Regenerate docco.html from source comments and curated notes"
          :task (load-file "tasks/docco.clj")}
