@@ -47,7 +47,7 @@
 <main>
 
 <h1>green <span class="v">specification · 2026-07-06</span></h1>
-<p class="tagline">A babashka-compatible Clojure library for building idempotent devops CLIs: desired state in EDN, workflows as data-threading step graphs, Selmer-scaffolded configuration, OpenTofu as the muscle, and Ansible for SSH provisioning.</p>
+<p class="tagline">A babashka-compatible Clojure library for building idempotent devops CLIs: desired state in YAML or EDN, workflows as data-threading step graphs, Selmer-scaffolded configuration, OpenTofu as the muscle, and Ansible for SSH provisioning.</p>
 <p><a href="docco.html">Read the source tour (Docco-style)</a>.</p>
 
 <div class="toc">
@@ -278,7 +278,7 @@
 <p>A consumer launcher should use a git dependency with an explicit SHA until green is published to Clojars:</p>
 <pre><code>#!/usr/bin/env bb
 (babashka.deps/add-deps
-  '{:deps {io.github.amiorin/green {:git/sha "REPLACE_WITH_COMMIT_SHA"}}})
+  '{:deps {io.github.getcolors/green {:git/sha "REPLACE_WITH_COMMIT_SHA"}}})
 (babashka.classpath/add-classpath "resources")
 (require '[green.cli :as cli] '[green.workflow :as wf])
 
@@ -356,9 +356,9 @@ cd ../floci-zookeeper
 └── examples/           zookeeper, multi-zookeeper, once, multi-once, floci-zookeeper</code></pre>
 
 <h3>Distribution</h3>
-<p>Library coordinate: <code>io.github.amiorin/green</code>. It has not been published to Clojars yet.</p>
+<p>Library coordinate: <code>io.github.getcolors/green</code>. It has not been published to Clojars yet.</p>
 <ul>
-  <li><strong>Current rule:</strong> external consumers and launcher snippets must use a git dep with an explicit commit SHA: <code>io.github.amiorin/green {:git/sha "REPLACE_WITH_COMMIT_SHA"}</code>.</li>
+  <li><strong>Current rule:</strong> external consumers and launcher snippets must use a git dep with an explicit commit SHA: <code>io.github.getcolors/green {:git/sha "REPLACE_WITH_COMMIT_SHA"}</code>.</li>
   <li><strong>Development:</strong> in-repo examples use <code>{:local/root "../.."}</code>.</li>
   <li><strong>Future Clojars publishing:</strong> <code>clojure -T:build jar</code>, <code>install</code>, and <code>deploy</code> are available; deploy reads <code>CLOJARS_USERNAME</code>/<code>CLOJARS_PASSWORD</code>.</li>
 </ul>

@@ -1,5 +1,6 @@
 .*
 !.gitignore
+!.nojekyll
 !.github/
 !.clj-kondo
 .clj-kondo/.*
