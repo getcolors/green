@@ -55,7 +55,7 @@
   (locking *out* (apply println xs) (flush)))
 
 ;; --- paths: one isolated tofu working dir per step, under work/<deployment> -
-;; The parent's :in sets :once/workdir to work/<name>, so server-dir becomes
+;; The parent's :in-fn sets :once/workdir to work/<name>, so server-dir becomes
 ;; work/eu/server, work/us/server, ... — deployments never share a dir.
 
 (defn example-path [path]
@@ -90,10 +90,10 @@
 ;; --- provider-swap advice (headline), now data-driven per deployment --------
 ;; Same tofu.clj backend-as-advice idiom: a :before advice that scaffolds the
 ;; provider-specific main.tf before `compute` runs. In multi-once the choice is
-;; per-deployment DATA: the advice reads :once/provider (set by the parent :in
-;; from each deployment) and picks the matching mock. The advice is uniform
-;; across branches; the data differs — downstream steps still never learn which
-;; cloud produced the host.
+;; per-deployment DATA: the advice reads :once/provider (set by the parent
+;; :in-fn from each deployment) and picks the matching mock. The advice is
+;; uniform across branches; the data differs — downstream steps still never
+;; learn which cloud produced the host.
 
 (def provider-templates
   {:digitalocean :once.do/main.tf
@@ -233,18 +233,18 @@
     :multi/start [start-step :multi/deployment]
     :multi/deployment
     [(wf/step once-wf
-              {:in (fn [opts]
-                     (let [d (:multi/deployment opts)]
-                       ;; carry ambient keys by assoc'ing onto opts (keeps
-                       ;; :green/event, :green/dry-run, inherited advice), then
-                       ;; project this deployment's fields into the once keys
-                       (assoc opts
-                              :once/deployment (:name d)      ; -> S3 key + report
-                              :once/provider   (:provider d)  ; -> ::provider advice
-                              :once/host       (:host d)
-                              :once/ssh        (:ssh d)
-                              :once/website    (:website d)
-                              :once/workdir    (str (:once/workdir opts) "/" (:name d)))))})
+              {:in-fn (fn [opts]
+                        (let [d (:multi/deployment opts)]
+                          ;; carry ambient keys by assoc'ing onto opts (keeps
+                          ;; :green/event, :green/dry-run, inherited advice), then
+                          ;; project this deployment's fields into the once keys
+                          (assoc opts
+                                 :once/deployment (:name d)      ; -> S3 key + report
+                                 :once/provider   (:provider d)  ; -> ::provider advice
+                                 :once/host       (:host d)
+                                 :once/ssh        (:ssh d)
+                                 :once/website    (:website d)
+                                 :once/workdir    (str (:once/workdir opts) "/" (:name d)))))})
      :multi/report]
     :multi/report
     [(fn [opts]

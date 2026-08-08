@@ -330,7 +330,7 @@
    "ansible-remote-step" "Scaffold-only step for the remote playbook that would configure the box."
    "once-wire-fn" "Static graph for one ONCE-style deployment; the multi example embeds this workflow once per deployment."
    "once-wf" "Reusable single-deployment workflow with default provider and local backends. Parent workflows replace those advice ids to customize behavior."
-   "deployments-wire-fn" "Parent graph that embeds once-wf as a step and scopes each branch to one deployment through :in."
+   "deployments-wire-fn" "Parent graph that embeds once-wf as a step and scopes each branch to one deployment through :in-fn."
    "deployments-next-fn" "Dynamic fan-out for the multi-ONCE parent: one deployment branch per desired-state entry."})
 
 (def html-escape-map

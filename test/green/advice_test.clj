@@ -305,9 +305,9 @@
   (let [parent (-> (wf/workflow {:start :p/sub
                                  :wire-fn (fn [_ _]
                                             [(wf/step (single-step-wf)
-                                                      {:in (fn [o] {:n (:n o)})})])})
+                                                      {:in-fn (fn [o] {:n (:n o)})})])})
                    (wf/advice-add :t/step :filter-return ::p #(log % :p)))]
-    (testing ":in built sub-opts from scratch; the engine re-stamped the registry"
+    (testing ":in-fn built sub-opts from scratch; the engine re-stamped the registry"
       (is (= [:base :p] (:log (wf/run parent {:n 1})))))))
 
 (deftest inheritance-is-transitive-through-nested-embeds

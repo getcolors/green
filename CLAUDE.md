@@ -144,9 +144,9 @@ Ten main namespaces under `src/green/`:
   `:green/trace`; thrown exceptions inside a step are caught and converted
   automatically.
   `wf/step` turns a whole workflow into an ordinary step function so
-  workflows compose (`:in`/`:out` shape opts crossing the boundary). The
-  engine preserves inherited advice even when `:in` rebuilds opts from
-  scratch; a custom `:in` should carry ambient keys such as `:green/event`
+  workflows compose (`:in-fn`/`:out-fn` shape opts crossing the boundary). The
+  engine preserves inherited advice even when `:in-fn` rebuilds opts from
+  scratch; a custom `:in-fn` should carry ambient keys such as `:green/event`
   and `:green/dry-run` if the sub-workflow needs them. See
   `examples/multi-zookeeper` for two clusters built from one workflow.
 

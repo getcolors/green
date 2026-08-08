@@ -97,12 +97,12 @@
   (case step
     :clusters/start [start-step :clusters/cluster]
     :clusters/cluster [(wf/step cluster-wf
-                                {:in (fn [opts]
-                                       (let [c (:zk/cluster opts)]
-                                         (assoc opts
-                                                :zk/servers (:servers c)
-                                                :zk/workdir (str (:zk/workdir opts)
-                                                                 "/" (:name c)))))})
+                                {:in-fn (fn [opts]
+                                          (let [c (:zk/cluster opts)]
+                                            (assoc opts
+                                                   :zk/servers (:servers c)
+                                                   :zk/workdir (str (:zk/workdir opts)
+                                                                    "/" (:name c)))))})
                        :clusters/report]
     :clusters/report [(fn [opts]
                         (doseq [b (:green/branches opts)]

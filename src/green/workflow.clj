@@ -416,22 +416,24 @@
 
   The enclosing run's advice is inherited: the nested run merges it over
   the sub-workflow's own (see the ns docstring). The engine re-stamps the
-  inherited registry after :in runs, so :in may build sub-opts from
+  inherited registry after :in-fn runs, so :in-fn may build sub-opts from
   scratch without severing inheritance.
 
   Options:
-    :in  (fn [opts] sub-opts)        — shape the opts entering the sub-workflow
-    :out (fn [opts sub-result] opts) — merge the sub-result back into the
-                                       parent's opts (default: the sub-result
-                                       itself is the step's result)"
+    :in-fn  (fn [opts] sub-opts)        — shape the opts entering the
+                                          sub-workflow
+    :out-fn (fn [opts sub-result] opts) — merge the sub-result back into the
+                                          parent's opts (default: the
+                                          sub-result itself is the step's
+                                          result)"
   ([wf] (step wf {}))
-  ([wf {:keys [in out]}]
+  ([wf {:keys [in-fn out-fn]}]
    (fn [opts]
      (let [inherited (::inherited opts)
-           sub-opts (cond-> ((or in identity) opts)
+           sub-opts (cond-> ((or in-fn identity) opts)
                       inherited (assoc ::inherited inherited))
            result (run wf sub-opts)]
-       (if out (out opts result) result)))))
+       (if out-fn (out-fn opts result) result)))))
 
 (defn run
   "Run the workflow from its start step with `opts` as the initial state.

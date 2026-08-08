@@ -133,12 +133,12 @@
 <h3>Composition — a workflow is a step</h3>
 <pre><code>(wf/step sub-wf)
 (wf/step sub-wf
-         {:in  (fn [opts] sub-opts)
-          :out (fn [opts sub-result] parent-result)})</code></pre>
+         {:in-fn  (fn [opts] sub-opts)
+          :out-fn (fn [opts sub-result] parent-result)})</code></pre>
 <ul>
   <li>The sub-workflow's result is just a step result, so failures propagate through parent routing naturally.</li>
-  <li>With default <code>:in</code>, ambient keys such as <code>:green/event</code> and <code>:green/dry-run</code> flow into the child. If custom <code>:in</code> builds opts from scratch, carry the ambient keys the child needs.</li>
-  <li>Advice inheritance is preserved even when <code>:in</code> rebuilds opts from scratch. This is what lets a parent impose dry-run, backend, audit, or provider advice on embedded workflows.</li>
+  <li>With default <code>:in-fn</code>, ambient keys such as <code>:green/event</code> and <code>:green/dry-run</code> flow into the child. If custom <code>:in-fn</code> builds opts from scratch, carry the ambient keys the child needs.</li>
+  <li>Advice inheritance is preserved even when <code>:in-fn</code> rebuilds opts from scratch. This is what lets a parent impose dry-run, backend, audit, or provider advice on embedded workflows.</li>
 </ul>
 
 <h3>Slices</h3>
@@ -367,7 +367,7 @@ cd ../floci-zookeeper
 <tr><th>Function</th><th>Signature / purpose</th></tr>
 <tr><td><code>green.workflow/workflow</code></td><td><code>{:start :end :wire-fn :next-fn} → workflow</code>; <code>wire-fn</code> is <code>(fn [step run-opts] ...)</code></td></tr>
 <tr><td><code>green.workflow/run</code></td><td><code>workflow, opts → final opts</code></td></tr>
-<tr><td><code>green.workflow/step</code></td><td><code>workflow [, {:in :out}] → step fn</code></td></tr>
+<tr><td><code>green.workflow/step</code></td><td><code>workflow [, {:in-fn :out-fn}] → step fn</code></td></tr>
 <tr><td><code>green.workflow/advice-add</code></td><td><code>workflow, step, how, id, f [, props] → workflow</code></td></tr>
 <tr><td><code>green.workflow/advice-remove</code></td><td><code>workflow, step, id → workflow</code></td></tr>
 <tr><td><code>green.workflow/advice-add-all</code></td><td><code>workflow, how, id, f [, props] → workflow</code></td></tr>

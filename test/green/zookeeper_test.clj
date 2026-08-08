@@ -88,7 +88,7 @@
 
 ;; --- composition: two clusters from the same workflow ------------------------
 ;; `wf/step` turns cluster-wf into an ordinary step; the parent fans it out
-;; once per cluster (in parallel), scoping each run with :in.
+;; once per cluster (in parallel), scoping each run with :in-fn.
 
 (def two-clusters-wf
   (wf/workflow
@@ -97,12 +97,12 @@
                (case step
                  :clusters/start [start-step :clusters/cluster]
                  :clusters/cluster [(wf/step cluster-wf
-                                             {:in (fn [opts]
-                                                    (let [c (:zk/cluster opts)]
-                                                      (assoc opts
-                                                             :zk/servers (:servers c)
-                                                             :zk/workdir (str (:zk/workdir opts)
-                                                                              "/" (:name c)))))})
+                                             {:in-fn (fn [opts]
+                                                       (let [c (:zk/cluster opts)]
+                                                         (assoc opts
+                                                                :zk/servers (:servers c)
+                                                                :zk/workdir (str (:zk/workdir opts)
+                                                                                 "/" (:name c)))))})
                                     :clusters/report]
                  :clusters/report [(fn [opts]
                                      (assoc opts :clusters/reported

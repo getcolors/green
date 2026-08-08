@@ -49,7 +49,7 @@ SSH provisioning when you need it.
   `:before-while`, `:before-until`, `:after-while`, `:after-until`,
   `:filter-args`, and `:filter-return`. At equal `:depth`, newest advice is
   outermost; lower `:depth` runs farther outside.
-- **Composition:** `(wf/step sub-workflow {:in … :out …})` turns a workflow
+- **Composition:** `(wf/step sub-workflow {:in-fn … :out-fn …})` turns a workflow
   into an ordinary step — wire it, advise it, and fan it out. Parent advice is
   inherited by embedded workflows; same step names match flat at any depth, and
   a parent advice entry with the same id replaces the child's entry.

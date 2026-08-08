@@ -210,12 +210,12 @@
         parent (wf/workflow {:start :p/sub
                              :wire-fn (fn [_ _]
                                         [(wf/step sub
-                                                  {:in (fn [o] {:green/event (:green/event o)
-                                                                :n (:parent-n o)})
-                                                   :out (fn [o r] (assoc o :doubled (:result r)))})])})
+                                                  {:in-fn (fn [o] {:green/event (:green/event o)
+                                                                   :n (:parent-n o)})
+                                                   :out-fn (fn [o r] (assoc o :doubled (:result r)))})])})
         res (wf/run parent {:green/event :create :parent-n 21 :keep-me :yes})]
     (is (= 42 (:doubled res)))
-    (is (= :yes (:keep-me res)) ":out preserved the parent opts")))
+    (is (= :yes (:keep-me res)) ":out-fn preserved the parent opts")))
 
 (deftest parallel-branches-actually-run-concurrently
   (let [in-flight (atom 0)
