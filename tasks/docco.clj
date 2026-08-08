@@ -38,7 +38,7 @@
    "Event-aware Ansible integration plus deterministic inventory rendering. The shelling step is deliberately small; inventory writing is advice so workflows can attach or replace it without changing the graph."
 
    "src/green/cli.clj"
-   "The thin CLI layer: parse args, read EDN desired state, stamp the lifecycle event and dry-run bit, optionally slice the workflow, then delegate to green.workflow."
+   "The thin CLI layer: parse args, read desired state as YAML or EDN according to the file's extension, stamp the lifecycle event and dry-run bit, optionally slice the workflow, then delegate to green.workflow."
 
    "src/green/dry_run.clj"
    "Dry-run is modeled as ordinary advice. Side-effecting steps stay honest and reusable; the CLI merely stamps :green/dry-run into opts."
