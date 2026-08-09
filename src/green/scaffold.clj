@@ -36,8 +36,17 @@
     (when (and p (.isDirectory p) (empty? (.list p)))
       (.delete p))))
 
+(def preserve-jinja-delimiters
+  "Selmer delimiters that leave Ansible/Jinja delimiters untouched."
+  {:tag-open \< :tag-close \> :filter-open \{ :filter-close \}})
+
+(defn content-spec
+  "A scaffold spec that writes `content` exactly, without template rendering."
+  [target content]
+  {:target target :content content :data {}})
+
 (defn- target-path [{:keys [target data]}]
-  (selmer/render target data))
+  (selmer/render target (or data {})))
 
 (defn- target-paths [specs]
   (mapv target-path specs))
@@ -47,10 +56,12 @@
     (when (.exists f) (io/delete-file f))
     (prune-empty-dir! f)))
 
-(defn- create-target! [{:keys [template data opts]} target]
+(defn- create-target! [{:keys [template content data opts] :as spec} target]
   (let [f (io/file target)]
     (io/make-parents f)
-    (spit f (render-template template data opts))))
+    (spit f (if (contains? spec :content)
+              (str content)
+              (render-template template data opts)))))
 
 (defn- delete-targets! [targets]
   (doseq [target targets]

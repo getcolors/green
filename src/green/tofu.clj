@@ -154,6 +154,28 @@
         :skip_requesting_account_id true
         :use_path_style false}))))
 
+(declare backends)
+
+(defn conventional-backend-advice
+  "Select local/S3/R2 backend advice using the Colors package convention.
+  `dir-fn` and `key-fn` are explicit so existing state addresses cannot move."
+  [{:keys [dir-fn key-fn choose-fn fields]
+    :or {choose-fn #(or (:provider-backend %) "local")
+         fields {:s3 {:bucket :s3-bucket :region :s3-region}
+                 :r2 {:bucket :r2-bucket :endpoint :r2-endpoint}}}}]
+  (let [pick (fn [kind field opts]
+               (get opts (get-in fields [kind field])))
+        key #(key-fn %)]
+    (backends
+     choose-fn
+     {"local" (local-backend-advice dir-fn)
+      "s3" (s3-backend-advice dir-fn #(hash-map :bucket (pick :s3 :bucket %)
+                                                  :key (key %)
+                                                  :region (pick :s3 :region %)))
+      "r2" (r2-backend-advice dir-fn #(hash-map :bucket (pick :r2 :bucket %)
+                                                  :key (key %)
+                                                  :endpoint (pick :r2 :endpoint %)))})))
+
 (defn backends
   "Build a :before advice that picks one of `advices` — a map of name ->
   advice — by (choose opts), so the backend can be desired state rather than a

@@ -89,9 +89,33 @@
     (keywordize (yaml/load text))
     (edn/read-string text)))
 
-(def ^:private cli-spec
-  {:file {:alias :f :default "green.yml" :desc "Desired state file (YAML, or EDN by extension)"}
-   :start {:coerce :keyword :desc "Override the workflow start step"}
+(defn find-up
+  "Return the nearest `name` at or above `start`, or nil."
+  ([name] (find-up name "."))
+  ([name start]
+   (loop [dir (.getAbsoluteFile (io/file start))]
+     (let [candidate (io/file dir name)
+           parent (.getParentFile dir)]
+       (cond
+         (.exists candidate) (.getAbsolutePath candidate)
+         (nil? parent) nil
+         :else (recur parent))))))
+
+(defn stage-dir
+  "Resolve a package stage below workdir/profile next to the desired-state file.
+  Absolute workdirs are preserved."
+  ([opts tool] (stage-dir opts tool {}))
+  ([opts tool {:keys [default-workdir default-profile state-file-key]
+               :or {default-workdir ".colors" default-profile "default"
+                    state-file-key :green/state-file}}]
+   (let [workdir (io/file (or (:workdir opts) default-workdir))
+         state-dir (when-not (.isAbsolute workdir)
+                     (some-> (get opts state-file-key) io/file .getAbsoluteFile .getParentFile))
+         root (if state-dir (io/file state-dir workdir) workdir)]
+     (str (io/file root (or (:profile opts) default-profile) (str tool))))))
+
+(def ^:private base-cli-spec
+  {:start {:coerce :keyword :desc "Override the workflow start step"}
    :end {:coerce :keyword :desc "Override the workflow end step (slice boundary)"}
    :dry-run {:coerce :boolean :desc "Stamp :green/dry-run — steps advised with green.dry-run are skipped"}})
 
@@ -106,13 +130,21 @@
   :green/state-file is the absolute path the state was read from, so a project
   can resolve its own relative paths against the file rather than against
   whatever directory the command happened to run in."
-  ([workflow] (run-cli workflow *command-line-args*))
-  ([workflow args]
+  ([workflow] (run-cli workflow *command-line-args* {}))
+  ([workflow args] (run-cli workflow args {}))
+  ([workflow args {:keys [default-file search-parents allowed-events]
+                   :or {default-file "green.yml" search-parents false}}]
    (try
-     (let [{:keys [args opts]} (cli/parse-args (vec args) {:spec cli-spec})
+     (let [resolved-default (or (and search-parents (find-up default-file)) default-file)
+           spec (assoc base-cli-spec :file {:alias :f :default resolved-default
+                                            :desc "Desired state file (YAML, or EDN by extension)"})
+           {:keys [args opts]} (cli/parse-args (vec args) {:spec spec})
            event (first args)]
-       (if-not event
+       (cond
+         (nil? event) {:green/exit 2 :green/err usage}
+         (and allowed-events (not (contains? (set allowed-events) (keyword event))))
          {:green/exit 2 :green/err usage}
+         :else
          (let [file (io/file (:file opts))]
            (if-not (.exists file)
              {:green/exit 2 :green/err (str "desired state file not found: " file)}
@@ -131,9 +163,10 @@
 (defn exec
   "Run and exit the process with :green/exit, printing :green/err and
   :green/trace to stderr. For use from the project's babashka script."
-  ([workflow] (exec workflow *command-line-args*))
-  ([workflow args]
-   (let [{:green/keys [exit err trace]} (run-cli workflow args)]
+  ([workflow] (exec workflow *command-line-args* {}))
+  ([workflow args] (exec workflow args {}))
+  ([workflow args config]
+   (let [{:green/keys [exit err trace]} (run-cli workflow args config)]
      (when err
        (binding [*out* *err*]
          (println err)

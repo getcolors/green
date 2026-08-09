@@ -127,7 +127,7 @@ validates. See its `README.md` and `PLAN.md`.
 
 ## Architecture
 
-Ten main namespaces under `src/green/`:
+Twelve main namespaces under `src/green/`:
 
 - **`workflow.clj`** — the engine. A **step** is a plain function
   `opts -> opts`, named by a qualified keyword. A `wire-fn` (`step run-opts ->
@@ -222,11 +222,11 @@ Ten main namespaces under `src/green/`:
   default backend advice from the parent). Use
   `wf/advice-plan` to inspect the composed stack for a step, with
   provenance (`:scope :step`/`:all`, `:level` = chain depth).
-- **`scaffold.clj`** — a flat file-spec DSL: a seq of
-  `{:template :ns/file :target "path" :data {...}}` maps rendered through
-  Selmer from classpath resources. On `:green/event :delete` the same
-  specs name what to remove (with immediate empty parent-directory
-  pruning).
+- **`scaffold.clj`** — a flat file-spec DSL: template specs render classpath
+  resources through Selmer, while `content-spec` writes computed content
+  exactly. On `:green/event :delete` the same specs name what to remove (with
+  immediate empty parent-directory pruning). `preserve-jinja-delimiters` is the
+  shared alternate-delimiter preset.
 - **`tofu.clj`** — event-aware OpenTofu steps: any non-`:delete` event
   (conventionally `:create`) → `init` + `apply` (assoc'ing
   `tofu output -json` back into opts under `:tofu/outputs` by default;
@@ -235,7 +235,9 @@ Ten main namespaces under `src/green/`:
   hardwired — they're attached as `:before` advice
   (`local-backend-advice`/`s3-backend-advice`/`gcs-backend-advice`/`r2-backend-advice`)
   that writes `backend.tf.json` before the step runs; `backends` picks among
-  them per run so the backend can be desired state.
+  them per run so the backend can be desired state. Package workflows use
+  `conventional-backend-advice` for explicit directory/state-key functions and
+  the standard local/S3/R2 desired-state fields.
   `tofu-with-spec` is the scaffold+run pairing: render the specs, run the
   step, and on `:delete` render *first* so tofu has the `.tf` files
   describing what it destroys, removing them only afterwards. `:build`
@@ -279,13 +281,19 @@ Ten main namespaces under `src/green/`:
   instead (`:do-token` ← `COLORS_PAR_DO_TOKEN`), coerced to the type of the
   value it replaces. It is idempotent, so a project may re-apply it in a
   validation step without caring whether the CLI already did.
+- **`lifecycle.clj`** — configurable package preflight: defaults, parameter
+  overlay, ordered validators, exit-2 aggregation, and a success callback.
+- **`providers.clj`** — caller-owned provider-registry operations: selection,
+  missing keys, required/secret errors, and provider-native tool environments.
 - **`process.clj`** — shelling out with a timeout that actually stops the
   command: `run` returns `{:exit :out :err}`, `run-with-timeout` bounds the
   wait and kills the whole process tree (a wrapper script cannot leave
   children behind). Neither throws — a command that could not start reports
   exit -1. `strip-ansi` makes captured output parseable. `clojure.java.shell/sh`
   has no timeout, which is why anything that talks to a remote host should
-  use this instead.
+  use this instead. It also provides inherited-terminal execution, POSIX
+  quoting, and sequential command-plan execution with continuation and cleanup
+  policies.
 - **`yaml.clj`** — `generate-string` emits the small YAML subset a generated
   Ansible file needs: block style, quoted string scalars, no anchors or
   folding. Map order is preserved, so sorted input gives deterministic bytes.

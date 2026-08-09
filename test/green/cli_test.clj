@@ -1,7 +1,10 @@
 (ns green.cli-test
   (:require
+   [clojure.java.io :as io]
    [clojure.test :refer [deftest is testing]]
    [green.cli :as cli]
+   [green.lifecycle :as lifecycle]
+   [green.providers :as providers]
    [green.workflow :as wf])
   (:import
    [java.io File]))
@@ -88,6 +91,19 @@
                                  "RED_PAR_DO_TOKEN" "tok"
                                  "BLUE_PAR_DO_TOKEN" "tok"
                                  "ONCE_PAR_DO_TOKEN" "tok"})))))
+
+(deftest shared-package-conventions
+  (let [file (state-file "{}")]
+    (is (= (str (.getParent (io/file file)) "/.colors/demo/tool")
+           (cli/stage-dir {:green/state-file file :profile "demo"} "tool"))))
+  (is (= {:green/event :create :x 1 :green/exit 0}
+         (lifecycle/preflight {:green/event :create}
+                              {:defaults {:x 1} :validators [(fn [_ _ _] [])]}
+                              {})))
+  (is (= [:token] (providers/missing-keys {} [:token])))
+  (is (= {"TOKEN" "secret"}
+         (providers/tool-env {:provider {"x" {:tofu-env {:token "TOKEN"}}}}
+                             {:provider "x" :token "secret"} [:provider]))))
 
 (deftest desired-state-is-read-by-extension
   (testing "yaml keys arrive as keywords, nesting included"

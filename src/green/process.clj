@@ -68,6 +68,38 @@
      (catch Exception e
        {:exit -1 :out "" :err (or (.getMessage e) (str (class e)))}))))
 
+(defn run-inherit
+  "Run argv with the caller's terminal streams attached."
+  [args]
+  (try
+    (let [process (-> (process-builder args {}) .inheritIO .start)]
+      {:exit (.waitFor process)})
+    (catch Exception e
+      {:exit -1 :err (or (.getMessage e) (str (class e)))})))
+
+(defn posix-quote
+  "Quote one POSIX-shell argument."
+  [x]
+  (str "'" (str/replace (str x) "'" "'\\''") "'"))
+
+(defn run-plan
+  "Run labeled command maps sequentially. Options: `:runner`,
+  `:continue?` `(command result)->bool`, and `:cleanup` (always called).
+  Returns the first non-tolerated failure with its command, or success."
+  [commands {:keys [runner continue? cleanup]
+             :or {runner #(run (:args %)) continue? (constantly false)
+                  cleanup (fn [])}}]
+  (try
+    (reduce (fn [_ command]
+              (let [result (runner command)]
+                (cond
+                  (zero? (:exit result)) result
+                  (continue? command result) {:exit 0 :out "" :err ""}
+                  :else (reduced (assoc result :command command)))))
+            {:exit 0 :out "" :err ""}
+            commands)
+    (finally (cleanup))))
+
 (defn run-with-timeout
   "Run `args`, forcibly stop it and its descendants after `timeout-ms`, and
   return `{:ok? :exit :out :err}`. Supports the same options as `run`."

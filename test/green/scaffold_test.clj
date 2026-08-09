@@ -47,6 +47,11 @@
       (is (re-find #"\{\{ ansible_var \}\}" content)
           "Jinja2 {{ }} passes through unchanged"))))
 
+(deftest direct-content-is-written-exactly
+  (let [dir (tmpdir) target (str dir "/raw.txt")]
+    (sc/scaffold {:green/event :create} [(sc/content-spec target "{{ untouched }}\n")])
+    (is (= "{{ untouched }}\n" (slurp target)))))
+
 (deftest missing-template-throws-with-context
   (is (thrown-with-msg? Exception #"template not found"
         (sc/scaffold {:green/event :create}
