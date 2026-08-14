@@ -1,7 +1,7 @@
 # green
 
 A babashka-compatible Clojure library for building idempotent devops CLIs:
-desired state in EDN, workflows as step graphs threaded by one map,
+desired state in YAML or EDN, workflows as step graphs threaded by one map,
 Selmer-scaffolded configuration files, OpenTofu as the muscle, and Ansible for
 SSH provisioning when you need it.
 
@@ -68,6 +68,12 @@ SSH provisioning when you need it.
   inventories.
 - `green.dry-run/advise` + `--dry-run` skips the named side-effecting steps and
   prints what would run. `green.progress/advise` adds all-step timing output.
+- `green.cli/exec` reads the desired-state file — `green.yml` by default,
+  overridden with `-f/--file`. `cli/read-state` picks the reader from the
+  extension: `.yml`/`.yaml` through yamlstar, anything else as EDN. Because that
+  file is on disk it must never hold secrets; `COLORS_PAR_*` environment
+  variables overlay flat keys after it is read (`COLORS_PAR_DO_TOKEN` →
+  `:do-token`), coerced to the type of the value they replace.
 
 ## Scheduler algorithm in plain English
 
