@@ -314,3 +314,14 @@ Twelve main namespaces under `src/green/`:
   safe to branch and share.
 - Ignore `dist/`: it is generated output, not source. Do not read, edit, or
   use files under `dist/` as documentation; update the source files instead.
+
+## Documentation
+
+`index.html` is both the full specification and this repository's landing page,
+and it carries two analytics tags: GA4 measurement ID `G-4VKP1WY4QJ`, whose
+explicit `page_title` must exactly equal the decoded HTML `<title>` and stay
+distinct and stable so one Analytics property can separate repositories, and the
+self-hosted Rybbit snippet
+`<script src="https://rybbit.getcolors.ai/api/script.js" data-site-id="9fb9c41a6d49" defer></script>`,
+which shares one site ID across every page because `getcolors.github.io/<repo>/`
+paths already encode the repository. Never add one tag without the other.
