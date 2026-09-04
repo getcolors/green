@@ -26,8 +26,27 @@
 (defn- env-with [extra]
   (merge (into {} (System/getenv)) extra))
 
-(defn- tofu! [dir env & args]
-  (apply sh/sh "tofu" (concat args [:dir dir :env env])))
+(defn- tofu!
+  "Run one tofu command in `dir` and return `{:exit :out :err}`.
+
+  `clojure.java.shell/sh` throws a raw `java.io.IOException` when the
+  process cannot start at all: `dir` does not exist (every fresh clone's
+  first real create, before any stage directory exists) or there is no
+  `tofu` binary on PATH. Both are reported here as a failed exit — 127,
+  the shell's own code for a command that could not run — so callers stay
+  in the Unix-style outcome world the way `green.process/run` (exit -1 on
+  a start failure) and the red and blue SDKs (`spawnExec` /
+  `_spawn_exec`, exit 127) already keep theirs. `tofu-step` then returns
+  the ordinary init failure, and `outputs` throws its `tofu output
+  failed:` ex-info carrying `:dir` — the one shape ONCE's compute
+  `read-state` catches for a launch failure, so a raw exception escaping
+  here would read downstream as a programmer defect instead of an
+  unreadable state."
+  [dir env & args]
+  (try
+    (apply sh/sh "tofu" (concat args [:dir dir :env env]))
+    (catch java.io.IOException e
+      {:exit 127 :out "" :err (or (ex-message e) (str (class e)))})))
 
 (defn- action-args [delete?]
   (if delete? destroy-args apply-args))

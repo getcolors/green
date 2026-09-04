@@ -244,6 +244,7 @@
   <li><code>:delete</code>: <code>tofu init</code>, then <code>tofu destroy -auto-approve</code>.</li>
   <li>Apply outputs are parsed to <code>{keyword value}</code> and assoc'd under <code>:tofu/outputs</code> by default. If you override <code>:output-key</code>, keep it namespaced.</li>
   <li>Non-zero process exits become <code>:green/exit</code> and <code>:green/err</code>.</li>
+  <li>A launch failure — no such <code>:dir</code>, or no <code>tofu</code> binary on <code>PATH</code> — is a failed exit, never a raw exception: the runner reports exit <code>127</code> with the start error as <code>:err</code>, the same shape as red's and blue's runtimes and as <code>green.process/run</code>. <code>tofu-step</code> then returns the ordinary <code>tofu init failed:</code> outcome, and <code>outputs</code> throws its <code>tofu output failed:</code> <code>ex-info</code> carrying <code>{:dir dir}</code> — the one shape a caller reading tofu state may rely on.</li>
   <li>Backends are not hardwired. <code>backend-advice</code> writes <code>backend.tf.json</code> for any backend type and config map (or function of opts), preserving native JSON values and nested collections. Helpers ship for local, S3, and GCS.</li>
 </ul>
 
@@ -380,7 +381,7 @@ cd ../floci-zookeeper
 <tr><td><code>green.scaffold/template-path</code></td><td><code>keyword → classpath resource path</code></td></tr>
 <tr><td><code>green.scaffold/render-template</code></td><td><code>keyword, data → rendered string</code></td></tr>
 <tr><td><code>green.scaffold/scaffold</code></td><td><code>opts, specs → opts</code></td></tr>
-<tr><td><code>green.tofu/outputs</code></td><td><code>dir → outputs map</code></td></tr>
+<tr><td><code>green.tofu/outputs</code></td><td><code>dir [, env] → outputs map</code>; on a non-zero exit — a launch failure (no such directory, no <code>tofu</code> binary) included, reported as exit 127 — throws <code>ex-info</code> <code>"tofu output failed: …"</code> with <code>{:dir dir}</code>, never a raw exception.</td></tr>
 <tr><td><code>green.tofu/tofu-step</code></td><td><code>opts, {:dir :output-key} → opts</code></td></tr>
 <tr><td><code>green.tofu/backend-advice</code></td><td><code>(opts → dir), type, config → before-advice</code></td></tr>
 <tr><td><code>green.tofu/local-backend-advice</code></td><td><code>(opts → dir) [, config] → before-advice</code></td></tr>

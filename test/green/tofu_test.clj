@@ -3,6 +3,7 @@
   (:require
    [cheshire.core :as json]
    [clojure.java.io :as io]
+   [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
    [green.tofu :as tofu])
   (:import
@@ -124,6 +125,42 @@
       (is (= 2 (count (get-in parsed ["resource" "dns_record"])))))
     (testing "nothing to render is an empty document, not nil"
       (is (= "{ }" (tofu/constructs-json []))))))
+
+(defn- missing-dir []
+  (str (System/getProperty "java.io.tmpdir") "/green-tofu-test-" (random-uuid)))
+
+(deftest a-launch-failure-is-a-failed-exit-not-a-raw-exception
+  (testing "sh's IOException becomes the outputs step error carrying :dir"
+    (with-redefs [clojure.java.shell/sh
+                  (fn [& _]
+                    (throw (java.io.IOException.
+                            "Cannot run program \"tofu\" (in directory \"/nope\"): error=2")))]
+      (let [e (is (thrown? clojure.lang.ExceptionInfo (tofu/outputs "/nope")))]
+        (is (= "/nope" (:dir (ex-data e))))
+        (is (str/starts-with? (ex-message e)
+                                         "tofu output failed: Cannot run program")))))
+  (testing "a message-less IOException still yields a non-empty step error"
+    (with-redefs [clojure.java.shell/sh (fn [& _] (throw (java.io.IOException.)))]
+      (let [e (is (thrown? clojure.lang.ExceptionInfo (tofu/outputs "/nope")))]
+        (is (= "/nope" (:dir (ex-data e))))
+        (is (str/starts-with? (ex-message e) "tofu output failed: "))
+        (is (< (count "tofu output failed: ") (count (ex-message e))))))))
+
+(deftest a-missing-stage-directory-is-a-failed-exit
+  ;; The directory is absent, so the launch fails whether or not tofu is on
+  ;; PATH: both paths are the same IOException from sh, and neither needs a
+  ;; skip. Nothing is asserted about the message past its prefix — bb and
+  ;; the JVM word the error differently.
+  (let [dir (missing-dir)]
+    (testing "outputs throws the step error, never the IOException"
+      (let [e (is (thrown? clojure.lang.ExceptionInfo (tofu/outputs dir)))]
+        (is (= dir (:dir (ex-data e))))
+        (is (str/starts-with? (ex-message e) "tofu output failed: "))))
+    (testing "tofu-step reports exit 127 as an ordinary init failure"
+      (let [res (tofu/tofu-step {:green/event :create} {:dir dir})]
+        (is (= 127 (:green/exit res)))
+        (is (str/starts-with? (:green/err res) "tofu init failed: "))
+        (is (< (count "tofu init failed: ") (count (:green/err res))))))))
 
 (deftest tofu-with-spec-follows-the-event
   (let [dir (tmpdir)
