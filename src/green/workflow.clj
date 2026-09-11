@@ -262,14 +262,16 @@
 (defn- branch-worst-exit [branch-opts]
   (apply max (map #(:green/exit % 0) branch-opts)))
 
-(defn- first-failed-branch [branch-opts]
-  (first (filter failed? branch-opts)))
-
 (defn- join-forks [entries]
-  (or (some #(when (seq (:forks %)) (:forks %)) entries) []))
+  (let [first-forks (:forks (first entries))]
+    (->> first-forks
+         (map-indexed vector)
+         (take-while (fn [[i frame]]
+                       (every? #(= (:id frame) (get-in % [:forks i :id])) entries)))
+         (mapv second))))
 
 (defn- failed-join-result [fork-opts forks branch-opts worst]
-  (let [bad (first-failed-branch branch-opts)]
+  (let [bad (first (filter #(= worst (:green/exit % 0)) branch-opts))]
     (terminal-result (assoc fork-opts
                             :green/exit worst
                             :green/err (:green/err bad)
@@ -293,10 +295,17 @@
         (children uid opts' (next-pairs wf step run-opts opts') forks')))))
 
 (defn- unit-base-opts [entry entries]
-  (or (:opts entry) (:opts (first entries)) {}))
+  (if entry
+    (:opts entry)
+    (let [forks (join-forks entries)
+          base (or (:opts (peek forks)) (:opts (first entries)) {})]
+      (assoc base :green/branches (mapv :opts entries)))))
 
 (defn- unit-forks [entry entries]
-  (or (:forks entry) (:forks (first entries)) []))
+  (if entry
+    (:forks entry)
+    (let [forks (join-forks entries)]
+      (if (seq forks) (pop forks) forks))))
 
 (defn- failed-unit-result [entry entries ^Throwable t]
   (terminal-result (scheduler-failure (unit-base-opts entry entries) t)

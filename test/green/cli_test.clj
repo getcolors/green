@@ -130,3 +130,39 @@
     (with-redefs [cli/read-pars (fn [opts] (assoc opts :token "from-env"))]
       (is (= "from-env"
              (:seen (cli/run-cli wf ["create" "-f" (state-file "{:token \"REPLACE_ME\"}")])))))))
+
+(deftest unknown-options-stop-before-workflow-execution
+  (let [calls (atom 0)
+        workflow (wf/workflow {:start :t/a
+                               :wire-fn (fn [_ _] [(fn [o] (swap! calls inc) o)])})
+        file (state-file "{}")]
+    (doseq [flag ["--dryrun" "--bogus" "--dryrun=true" "-z"]]
+      (let [result (cli/run-cli workflow ["create" "-f" file flag])]
+        (is (= 2 (:green/exit result)))
+        (is (re-find #"Unknown option" (:green/err result)))))
+    (is (zero? @calls))))
+
+(deftest core-scalar-numbers-and-strings
+  (let [state (cli/read-state "state.yml"
+                (str "exponent: 1e3\nfractional-exponent: 1.0e3\nsmall-exponent: 1.25e-2\n"
+                     "date: 2026-09-11\nclock: 1:30.5\noctal: 0o17\nhex: 0x1f\n"
+                     "quoted: [\"1e3\", \"0o17\", \"0x1f\", \"2026-09-11\"]\n"
+                     "nested: {number: &n 0o17, alias: *n}\n"
+                     "tagged: !!str 0o17\nblock: |\n  0o17\n"))]
+    (is (== 1000 (:exponent state) (:fractional-exponent state)))
+    (is (= 0.0125 (:small-exponent state)))
+    (is (= "2026-09-11" (:date state)))
+    (is (= "1:30.5" (:clock state)))
+    (is (= 15 (:octal state)))
+    (is (= 31 (:hex state)))
+    (is (= ["1e3" "0o17" "0x1f" "2026-09-11"] (:quoted state)))
+    (is (= {:number 15 :alias 15} (:nested state)))
+    (is (= "0o17" (:tagged state)))
+    (is (= "0o17\n" (:block state)))))
+
+(deftest core-signed-infinity
+  (let [state (cli/read-state "state.yml" "positive: +.INF\nnegative: -.Inf\nnan: .NaN\nquoted: \"-.Inf\"\n")]
+    (is (= Double/POSITIVE_INFINITY (:positive state)))
+    (is (= Double/NEGATIVE_INFINITY (:negative state)))
+    (is (Double/isNaN (:nan state)))
+    (is (= "-.Inf" (:quoted state)))))

@@ -236,3 +236,83 @@
         res (wf/run w {:green/exit 0})]
     (is (= 0 (:green/exit res)))
     (is (< 1 @peak) "branches overlapped in time")))
+
+(deftest nested-join-uses-common-ancestry
+  (doseq [right-length [1 4] enclosing-fork [false true]]
+    (testing (str "right length " right-length ", enclosing fork " enclosing-fork)
+      (let [right-step #(keyword "t" (str "right" %))
+            graph (into {:t/root (if enclosing-fork [:t/fork :t/outside] [:t/fork])
+                         :t/fork [:t/left (right-step 1)] :t/left [:t/leaf1 :t/leaf2]
+                         :t/leaf1 [:t/join] :t/leaf2 [:t/join]
+                         :t/join (if enclosing-fork [:t/final] [])
+                         :t/outside [:t/final] :t/final []}
+                        (for [i (range 1 (inc right-length))]
+                          [(right-step i) [(if (= i right-length) :t/join (right-step (inc i)))]]))
+            joins (atom [])
+            result (wf/run (wf/workflow
+                            {:start :t/root
+                             :wire-fn (fn [s _]
+                                        (into [(fn [o]
+                                                 (when (#{:t/join :t/final} s)
+                                                   (swap! joins conj {:step s :base (:path o)
+                                                                      :branches (:green/branches o)}))
+                                                 (update o :path (fnil conj []) s))]
+                                              (get graph s)))}) {})]
+        (is (= 0 (:green/exit result)))
+        (is (= [:t/root :t/fork] (:base (first @joins))))
+        (is (= 3 (count (:branches (first @joins)))))
+        (is (= (if enclosing-fork 2 1) (count @joins)))
+        (when enclosing-fork
+          (is (= [:t/root] (:base (second @joins))))
+          (is (= 2 (count (:branches (second @joins))))))))))
+
+(deftest failure-after-nested-join-does-not-collapse-joined-fork
+  (let [graph {:t/root [:t/left :t/right] :t/left [:t/a :t/b]
+               :t/a [:t/join] :t/b [:t/join] :t/right [:t/r2]
+               :t/r2 [:t/r3] :t/r3 [:t/join] :t/join [:t/fail] :t/fail []}
+        result (wf/run (wf/workflow
+                        {:start :t/root
+                         :wire-fn (fn [s _]
+                                    (into [(fn [o]
+                                             (if (= s :t/fail)
+                                               (assoc o :green/exit 8 :green/err "after join")
+                                               (assoc o :joined (or (= s :t/join) (:joined o)))))]
+                                          (get graph s)))}) {})]
+    (is (= 8 (:green/exit result)))
+    (is (true? (:joined result)))
+    (is (= 3 (count (:green/branches result))))))
+
+(deftest failed-join-preserves-worst-diagnostics
+  (doseq [exits [[3 9] [9 3] [9 9]]]
+    (let [result (wf/run (wf/workflow
+                          {:start :t/root
+                           :wire-fn (fn [s _]
+                                      (case s
+                                        :t/root [identity :t/a :t/b]
+                                        :t/join [(fn [_] (throw (Exception. "join must not execute")))]
+                                        (let [n (if (= s :t/a) 0 1)]
+                                          [(fn [o] (assoc o :green/exit (exits n)
+                                                           :green/err (str "error " n)
+                                                           :green/trace (str "trace " n))) :t/join])))
+                           :next-fn (fn [_ ns o] (mapv (fn [n] [n o]) ns))}) {})
+          winner (if (>= (exits 0) (exits 1)) 0 1)]
+      (is (= (apply max exits) (:green/exit result)))
+      (is (= (str "error " winner) (:green/err result)))
+      (is (= (str "trace " winner) (:green/trace result)))
+      (is (= 2 (count (:green/branches result)))))))
+
+(deftest join-routing-exceptions-preserve-common-fork-context
+  (let [graph {:t/root [:t/left :t/right] :t/left [:t/a :t/b]
+               :t/a [:t/join] :t/b [:t/join] :t/right [:t/r2]
+               :t/r2 [:t/r3] :t/r3 [:t/join] :t/join []}
+        result (wf/run (wf/workflow
+                        {:start :t/root
+                         :wire-fn (fn [s _] (into [(fn [o] (update o :path (fnil conj []) s))]
+                                                 (get graph s)))
+                         :next-fn (fn [s ns o]
+                                    (when (= s :t/join) (throw (Exception. "routing failed")))
+                                    (mapv (fn [n] [n o]) ns))}) {})]
+    (is (= 1 (:green/exit result)))
+    (is (= "routing failed" (:green/err result)))
+    (is (= [:t/root] (:path result)))
+    (is (= 3 (count (:green/branches result))))))

@@ -146,3 +146,27 @@
                   specs)]
         (is (= 0 (:green/exit opts)))
         (is (.exists (io/file dir "create.yml")))))))
+
+(deftest inventory-quotes-host-and-group-values-separately
+  (is (= (str "[web]\nlocalhost count=3 enabled=True path='\"/tmp/my keys/id\"' text='\"123\"'\n"
+              "\n[web:vars]\nenabled=True\npath=\"/tmp/my keys/id\"\ntext=\"123\"\n")
+         (ansible/inventory-ini
+          {:web {:hosts [{:name "localhost" :vars {:path "/tmp/my keys/id" :count 3 :text "123" :enabled true}}]
+                 :vars {:path "/tmp/my keys/id" :text "123" :enabled true}}}))))
+
+(deftest inventory-round-trips-through-ansible
+  (if-not (try (zero? (:exit (sh/sh "ansible-inventory" "--version"))) (catch java.io.IOException _ false))
+    (println "Skipping inventory parser test: ansible-inventory is not on PATH")
+    (let [values {:path "/tmp/my keys/id_ed25519" :quote "he said \"it's ready\"" :backslash "C:\\keys\\new"
+                  :comment "#hash; value" :empty "" :numeric_string "123" :boolean_string "False" :null_string "None"
+                  :boolean true :number 3 :null nil :unicode "café" :whitespace " surrounding whitespace "
+                  :newline "first\nsecond" :nested {"a" [1 false "x y"]}}
+          prefixed (fn [prefix] (into {} (map (fn [[k v]] [(str prefix "_" (name k)) v]) values)))
+          file (str (tmpdir) "/inventory.ini")
+          _ (spit file (ansible/inventory-ini {:web {:hosts [{:name "localhost" :vars (prefixed "host")}]
+                                                    :vars (prefixed "group")}}))
+          {:keys [exit out err]} (sh/sh "ansible-inventory" "-i" file "--list")]
+      (is (= 0 exit))
+      (is (not (clojure.string/includes? err "Failed to parse")))
+      (is (= (merge (prefixed "host") (prefixed "group"))
+             (get-in (cheshire.core/parse-string out) ["_meta" "hostvars" "localhost"]))))))

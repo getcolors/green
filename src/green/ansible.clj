@@ -121,9 +121,41 @@
 (defn- ini-name [x]
   (if (keyword? x) (name x) (str x)))
 
-(defn- ini-vars [vars]
-  (map (fn [[k v]] (str (ini-name k) "=" (ini-name v)))
-       (sort-by (comp ini-name key) vars)))
+(defn- python-literal [value]
+  (cond
+    (or (string? value) (keyword? value)) (json/generate-string (ini-name value))
+    (nil? value) "None"
+    (boolean? value) (if value "True" "False")
+    (and (number? value) (not (ratio? value))
+         (Double/isFinite (double value))) (str value)
+    (sequential? value) (str "[" (str/join "," (map python-literal value)) "]")
+    (map? value) (str "{" (str/join "," (map (fn [[k v]]
+                        (str (json/generate-string (ini-name k)) ":" (python-literal v)))
+                      (sort-by (comp ini-name key) value))) "}")
+    :else (throw (ex-info "inventory variables require finite numbers or JSON-compatible values" {}))))
+
+(defn- group-value [value]
+  ;; Both inventory forms evaluate Python literals. Preserve ordinary names,
+  ;; paths, and IPv4 addresses; quote other strings to retain their type.
+  (let [text (when (or (string? value) (keyword? value)) (ini-name value))]
+    (if (and text (or (and (re-matches #"[A-Za-z_/@][A-Za-z0-9_./:@%+-]*" text)
+                          (not (contains? #{"True" "False" "None"} text)))
+                     (re-matches #"[0-9]+(?:\.[0-9]+){3}" text)))
+      text
+      (python-literal value))))
+
+(defn- host-value [value]
+  ;; Host lines also pass through shlex before Python literal evaluation.
+  (let [literal (group-value value)]
+    (if (re-matches #"[\w@%+=:,./-]+" literal)
+      literal
+      (str "'" (str/replace literal "'" "'\"'\"'") "'"))))
+
+(defn- ini-vars
+  ([vars] (ini-vars vars host-value))
+  ([vars encode]
+   (map (fn [[k v]] (str (ini-name k) "=" (encode v)))
+        (sort-by (comp ini-name key) vars))))
 
 (defn- host-line [{host :name vars :vars}]
   (str/join " " (cons (ini-name host) (ini-vars vars))))
@@ -132,7 +164,7 @@
   (cond-> (str "[" (ini-name group) "]\n"
                (str/join "" (map #(str (host-line %) "\n") hosts)))
     (seq vars) (str "\n[" (ini-name group) ":vars]\n"
-                    (str/join "" (map #(str % "\n") (ini-vars vars))))))
+                    (str/join "" (map #(str % "\n") (ini-vars vars group-value))))))
 
 (defn inventory-ini
   "Render an Ansible INI inventory from

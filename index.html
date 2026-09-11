@@ -149,7 +149,7 @@
 <ul>
   <li><strong>Static fork:</strong> <code>wire-fn</code> lists several successors.</li>
   <li><strong>Dynamic fan-out:</strong> <code>next-fn</code> returns several <code>[step opts]</code> pairs.</li>
-  <li><strong>Join:</strong> branches from different origins that converge on the same step run that step once, using the fork-point opts plus <code>:green/branches</code>.</li>
+  <li><strong>Join:</strong> branches from different origins that converge on the same step run that step once, using the deepest shared fork's opts plus <code>:green/branches</code>.</li>
   <li><strong>Failure:</strong> a failed branch inside a fork lets siblings finish their current step, collapses the fork, skips the join, and propagates the worst exit with all branch results under <code>:green/branches</code>.</li>
 </ul>
 <div class="note"><strong>Join detection.</strong> Convergence is by qualified step name. The scheduler waits while another live branch can statically reach the same step through this run's <code>wire-fn</code> graph; dynamic detours not visible in that graph may require explicit routing care.</div>
@@ -191,6 +191,12 @@
     (mapv (fn [item] [:process (assoc opts :item item)])
           (:items opts))))</code></pre>
 <div class="note"><strong>When you don't need <code>wf/step</code>.</strong> If the number of branches is fixed and known at design time, distinct step names work: <code>:deploy-staging</code> and <code>:deploy-production</code> never converge, so they run independently without a sub-workflow. <code>wf/step</code> is needed when the count is dynamic — N items, N nodes, N tenants.</div>
+
+<p>A join consumes the deepest fork shared by all incoming branches and preserves its enclosing forks. Failed joins use the highest exit code and that branch's error and trace. Equal codes select the first incoming branch.</p>
+
+<p>YAML plain scientific notation, octal and hexadecimal values are numeric. Date-like and sexagesimal values remain strings. Quoted scalars remain strings. Unknown CLI options return exit 2 before workflow execution.</p>
+
+<p>Process helpers return 127 when a command cannot start, 124 on timeout and 130 on interruption. The timeout covers process exit and output capture. Cleanup waits up to one additional second for pipes, plus a bounded group-kill command. Captured commands use POSIX process groups when <code>setsid</code> and <code>kill</code> are available. Timed commands also check for surviving session members; <code>ps</code> distinguishes running children from unreaped zombies when available. Other platforms and inherited-terminal execution use Java descendant handles, which cannot recover children already reparented after the leader exits. A child that starts its own session can escape group cleanup.</p>
 
 <h2 id="advice">6. Advice</h2>
 <p>Advice wraps step functions without changing graph wiring. Registries are immutable workflow data; adding/removing advice returns a new workflow.</p>
@@ -260,7 +266,7 @@
   <li>Any non-<code>:delete</code> event runs the create playbook (<code>create.yml</code> by default); <code>:delete</code> runs the delete playbook (<code>delete.yml</code> by default). Override with <code>:playbooks</code>.</li>
   <li>Options map to <code>ansible-playbook</code>: <code>:inventory</code>, <code>:private-key</code>, <code>:user</code>, <code>:extra-vars</code> (JSON <code>-e</code>), and <code>:host-key-checking false</code> (exports <code>ANSIBLE_HOST_KEY_CHECKING=False</code>).</li>
   <li>On success, PLAY RECAP is parsed into per-host counters under <code>:ansible/recap</code> by default; override with namespaced <code>:recap-key</code>.</li>
-  <li><code>inventory-ini</code> renders deterministic INI from <code>{group {:hosts [{:name .. :vars {..}}] :vars {..}}}</code>.</li>
+  <li><code>inventory-ini</code> renders deterministic INI from <code>{group {:hosts [{:name .. :vars {..}}] :vars {..}}}</code>. Strings preserve whitespace, quotes, backslashes and literal-looking values such as <code>"123"</code>. Host values include shell quoting around their Python literal; group values use the literal directly.</li>
   <li><code>inventory-advice</code> is a <code>:before</code> advice that writes an inventory file from data or a function of opts, mirroring OpenTofu backend advice.</li>
 </ul>
 

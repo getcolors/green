@@ -289,7 +289,7 @@ Twelve main namespaces under `src/green/`:
   command: `run` returns `{:exit :out :err}`, `run-with-timeout` bounds the
   wait and kills the whole process tree (a wrapper script cannot leave
   children behind). Neither throws — a command that could not start reports
-  exit -1. `strip-ansi` makes captured output parseable. `clojure.java.shell/sh`
+  exit 127. Timeouts return 124 and interruption returns 130 after cleanup. `strip-ansi` makes captured output parseable. `clojure.java.shell/sh`
   has no timeout, which is why anything that talks to a remote host should
   use this instead. It also provides inherited-terminal execution, POSIX
   quoting, and sequential command-plan execution with continuation and cleanup

@@ -13,8 +13,12 @@
    [clojure.edn :as edn]
    [clojure.java.io :as io]
    [clojure.string :as str]
+   [clojure.walk :as walk]
    [green.workflow :as wf]
-   [yamlstar.core :as yaml]))
+   [yamlstar.parser :as yaml-parser]
+   [yamlstar.composer :as yaml-composer]
+   [yamlstar.resolver :as yaml-resolver]
+   [yamlstar.constructor :as yaml-constructor]))
 
 (def ^:private par-prefix
   "The parameter namespace every colour shares, so one variable serves green,
@@ -80,13 +84,36 @@
     (sequential? x) (mapv keywordize x)
     :else x))
 
+(defn- core-scalar-node
+  "Fill yamlstar 0.1.17 scalar gaps before resolution. Quoted strings and
+  explicit tags retain the parser's original nodes."
+  [node]
+  (if (and (map? node) (= :scalar (:kind node))
+           (nil? (:style node)) (nil? (:tag node)))
+    (let [value (:value node)]
+      (cond
+        (re-matches #"0(?:o[0-7]+|x[0-9a-fA-F]+)" value)
+        (assoc node :value (str (java.math.BigInteger.
+                                 (subs value 2) (if (= \o (second value)) 8 16))))
+        ;; The upstream constructor only accepts signed lowercase infinity.
+        (re-matches #"[-+]?\.(?:inf|Inf|INF)" value)
+        (assoc node :value (str/lower-case value))
+        :else node))
+    node))
+
 (defn read-state
   "Parse desired-state `text` written in `file`'s language: YAML for .yml and
   .yaml, EDN otherwise. YAML is read by yamlstar, whose 1.2 core schema leaves
   `no`, `yes` and `on` as the strings they look like."
   [file text]
   (if (re-find #"(?i)\.ya?ml$" (str file))
-    (keywordize (yaml/load text))
+    (->> text
+         yaml-parser/parse
+         yaml-composer/compose
+         (walk/postwalk core-scalar-node)
+         yaml-resolver/resolve
+         yaml-constructor/construct
+         keywordize)
     (edn/read-string text)))
 
 (defn find-up
@@ -138,7 +165,7 @@
      (let [resolved-default (or (and search-parents (find-up default-file)) default-file)
            spec (assoc base-cli-spec :file {:alias :f :default resolved-default
                                             :desc "Desired state file (YAML, or EDN by extension)"})
-           {:keys [args opts]} (cli/parse-args (vec args) {:spec spec})
+           {:keys [args opts]} (cli/parse-args (vec args) {:spec spec :restrict true})
            event (first args)]
        (cond
          (nil? event) {:green/exit 2 :green/err usage}
