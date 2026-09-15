@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: colors-dev
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: green-controller
+  namespace: colors-dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: green-controller
+  namespace: colors-dev
+rules:
+  - apiGroups: [colors.getcolors.ai]
+    resources: [localservicedeployments, localservicedeployments/status, localservicedeployments/finalizers]
+    verbs: [get, list, update, patch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: green-controller
+  namespace: colors-dev
+subjects:
+  - kind: ServiceAccount
+    name: green-controller
+    namespace: colors-dev
+roleRef:
+  kind: Role
+  name: green-controller
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: green-controller
+  namespace: colors-dev
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: green-controller
+  template:
+    metadata:
+      labels:
+        app: green-controller
+    spec:
+      serviceAccountName: green-controller
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: controller
+          image: colors-green-controller:local
+          imagePullPolicy: Never
+          args: [--in-cluster]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]

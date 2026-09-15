@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Load a locally built image into the dedicated kind node, including Docker's
+# containerd image store where kind load may encounter missing platform layers.
+set -euo pipefail
+image=${1:?Usage: load-image IMAGE}
+arch=$(uname -m)
+case "$arch" in
+  aarch64|arm64) platform=linux/arm64 ;;
+  x86_64|amd64) platform=linux/amd64 ;;
+  *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
+esac
+docker_command=(docker)
+if ! docker info >/dev/null 2>&1; then
+  docker_command=(sudo -n docker)
+fi
+archive=$(mktemp /tmp/green-kind-image.XXXXXX.tar)
+trap 'rm -f "$archive"' EXIT
+"${docker_command[@]}" save --platform "$platform" "$image" > "$archive"
+"${docker_command[@]}" exec -i colors-green-control-plane \
+  ctr --namespace=k8s.io images import --platform "$platform" - < "$archive"

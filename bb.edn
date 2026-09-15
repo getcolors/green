@@ -1,4 +1,5 @@
-{:paths ["src" "resources" "test" "test-resources"]
+{:paths ["src" "resources" "test" "test-resources"
+         "examples/kubernetes/src" "examples/kubernetes/test"]
  ;; selmer, cheshire and babashka.cli are built into babashka; yamlstar is not,
  ;; so it must be declared here as well as in deps.edn. Keep the version in
  ;; lockstep with deps.edn — it is pinned exactly on purpose.
@@ -17,6 +18,9 @@
                    [green.tofu-test]
                    [green.ansible-test]
                    [green.process-test]
+                   [green.kubernetes-test]
+                   [green.kubernetes-client-test]
+                   [colors.local-service-test]
                    [green.yaml-test]
                    [green.zookeeper-test])
         :task (let [{:keys [fail error]}
@@ -29,6 +33,9 @@
                                             'green.tofu-test
                                             'green.ansible-test
                                             'green.process-test
+                                            'green.kubernetes-test
+                                            'green.kubernetes-client-test
+                                            'colors.local-service-test
                                             'green.yaml-test
                                             'green.zookeeper-test)]
                 (when (pos? (+ fail error))

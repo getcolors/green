@@ -1,0 +1,24 @@
+#!/usr/bin/env bb
+(require '[babashka.fs :as fs]
+         '[babashka.classpath :as cp])
+(def script-dir (fs/parent (fs/canonicalize *file*)))
+(cp/add-classpath (str (fs/path script-dir "../../src") ":" (fs/path script-dir "src")))
+(require '[green.kubernetes :as k8s]
+         '[green.kubernetes.client :as client]
+         '[colors.local-service :as local])
+(def context-name (or (first *command-line-args*) "kind-colors-green"))
+(when-not (or (= context-name "--in-cluster") (.startsWith context-name "kind-"))
+  (binding [*out* *err*] (println "This local example only accepts an explicit kind-* context"))
+  (System/exit 2))
+(def transport (client/kubectl-client
+                (if (= "--in-cluster" (first *command-line-args*))
+                  {:in-cluster? true}
+                  {:context (or (first *command-line-args*) "kind-colors-green")})))
+(def runtime (k8s/start! (k8s/controller {:packages [(local/package transport)]
+                                        :client transport :namespace "colors-dev"
+                                        :poll-ms 500 :workers 2})))
+(def stopped (promise))
+(.addShutdownHook (Runtime/getRuntime)
+                  (Thread. (fn [] (k8s/stop! runtime) (deliver stopped true))))
+(println "Green LocalServiceDeployment controller running in colors-dev")
+@stopped

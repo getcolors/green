@@ -1,0 +1,56 @@
+#!/usr/bin/env bb
+(require '[babashka.fs :as fs] '[babashka.classpath :as cp])
+(def script-dir (fs/parent (fs/canonicalize *file*)))
+(cp/add-classpath (str (fs/path script-dir "../../src")))
+(require '[green.workflow :as wf] '[green.kubernetes.client :as client])
+(def event (keyword (or (first *command-line-args*) "check")))
+(def context-name (or (second *command-line-args*) "kind-colors-green"))
+(when-not (contains? #{:build :create :check :delete} event)
+  (binding [*out* *err*] (println "Usage: bootstrap build|create|check|delete [kind-context]"))
+  (System/exit 2))
+(when-not (.startsWith context-name "kind-")
+  (binding [*out* *err*] (println "This local example only accepts an explicit kind-* context"))
+  (System/exit 2))
+(def transport (client/kubectl-client {:context context-name :request-timeout-seconds 150}))
+(defn request [args] (client/request! transport args {:raw? true :timeout-ms 150000}))
+(defn manifest [name] (str (fs/path script-dir "manifests" name)))
+(defn install-crd [opts]
+  (request ["apply" "-f" (manifest "crd.yml")])
+  (request ["wait" "--for=condition=Established" "crd/localservicedeployments.colors.getcolors.ai" "--timeout=60s"])
+  opts)
+(defn install-controller [opts]
+  (request ["apply" "-f" (manifest "controller.yml")])
+  opts)
+(defn check-controller [opts]
+  (request ["rollout" "status" "deployment/green-controller" "-n" "colors-dev" "--timeout=120s"])
+  opts)
+(defn remove-controller [opts]
+  (let [instances (client/request! transport ["get" "localservicedeployments.colors.getcolors.ai" "-A" "-o" "json"])]
+    (when (seq (:items instances))
+      (throw (ex-info "Remove all LocalServiceDeployments before uninstalling their controller" {}))))
+  ;; Preserve both CRD and namespace, including retained infrastructure.
+  (request ["delete" "deployment/green-controller" "role/green-controller"
+            "rolebinding/green-controller" "serviceaccount/green-controller"
+            "-n" "colors-dev" "--ignore-not-found" "--wait=true" "--timeout=120s"])
+  opts)
+(defn render [opts]
+  (doseq [file ["crd.yml" "controller.yml"]]
+    (println "---")
+    (print (slurp (manifest file))))
+  opts)
+(def workflow
+  (wf/workflow
+   {:start ::start
+    :wire-fn (fn [step _]
+               (case step
+                 ::start (case event
+                           :build [render]
+                           :create [install-crd ::controller]
+                           :check [check-controller]
+                           :delete [remove-controller])
+                 ::controller [install-controller ::ready]
+                 ::ready [check-controller]))}))
+(let [result (wf/run workflow {:green/event event})]
+  (when (pos? (:green/exit result 0))
+    (binding [*out* *err*] (println (:green/err result))))
+  (System/exit (:green/exit result 0)))

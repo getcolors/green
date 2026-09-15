@@ -408,6 +408,16 @@ cd ../floci-zookeeper
 <tr><td><code>green.cli/exec</code></td><td><code>workflow [, args] → exits process</code></td></tr>
 </table>
 
+<h2 id="kubernetes">Kubernetes controllers</h2>
+<p><code>green.kubernetes</code> calls package-owned Clojure functions and Green
+workflows from a Kubernetes control loop. Each package registers a separate
+custom resource type. The local implementation supports bounded workers,
+per-profile serialization within one process, periodic observation, retries,
+suspension, status, and protected deletion.</p>
+<p>See the <a href="docs/kubernetes.md">package contract</a> and the
+<a href="examples/kubernetes/README.md">Docker and kind example</a>. The example
+includes installation as a Green workflow. Distributed locking and automatic
+failover are outside this version.</p>
 </main>
 </body>
 </html>

@@ -1,0 +1,15 @@
+apiVersion: colors.getcolors.ai/v1alpha1
+kind: LocalServiceDeployment
+metadata:
+  name: local-service
+  namespace: colors-dev
+spec:
+  state: running
+  reconcileInterval: 5s
+  suspend: false
+  deletionPolicy: Retain
+  config:
+    profile: local-service
+    replicas: 1
+    message: Hello from Green
+    compute-prevent-destroy: true

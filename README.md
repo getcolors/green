@@ -93,6 +93,22 @@ The scheduler is a small fork/join workflow runner:
 
 ## Install
 
+### Kubernetes controller development
+
+`green.kubernetes` runs package callbacks and Green workflows from a Kubernetes
+control loop. The [package contract](docs/kubernetes.md) describes the API.
+Each package registers its own custom resource type. The first
+version uses one controller process, bounded workers, per-profile serialization,
+periodic observation, and Kubernetes status and finalizers.
+
+The [local Kubernetes example](examples/kubernetes/README.md) includes a package
+CRD, a Docker controller image, and a Green workflow that installs the operator.
+It runs only against a dedicated local kind cluster. See [PLAN.md](PLAN.md) for
+the implementation scope and [HANDOFF.md](HANDOFF.md) for verification results
+and limitations.
+
+### Library dependency
+
 `green` has not been published to Clojars yet. Use a git dependency with an
 explicit commit SHA:
 
