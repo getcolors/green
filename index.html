@@ -73,18 +73,25 @@
 <h2 id="philosophy">1. Philosophy</h2>
 <ul>
   <li><strong>green is a library.</strong> Users define steps, wiring, and workflows in their own project; green supplies the engine, infrastructure helpers, and CLI plumbing.</li>
-  <li><strong>Everything is a map.</strong> The desired state is an EDN map loaded into <code>opts</code>. Every step reads and returns that map, possibly enriched with observed reality such as OpenTofu outputs or Ansible recaps.</li>
+  <li><strong>Everything is a map.</strong> The desired state is a YAML or EDN file loaded into <code>opts</code> as a keyword-addressed map. Every step reads and returns that map, possibly enriched with observed reality such as OpenTofu outputs or Ansible recaps.</li>
   <li><strong>Idempotent apply.</strong> There is no plan phase in green itself. Re-running the same event should converge. <code>create</code> and <code>delete</code> are conventions; the event set is open.</li>
   <li><strong>Unix exit-code semantics.</strong> Steps report success/failure with <code>:green/exit</code>; the workflow's final value becomes the process exit code.</li>
   <li><strong>babashka-compatible.</strong> The library and tests run under babashka and the JVM.</li>
 </ul>
 
 <h2 id="opts">2. Desired state &amp; the opts contract</h2>
-<p>The CLI reads <code>green.edn</code> by default (override with <code>-f/--file</code>), stamps the lifecycle event, and passes the map to <code>wf/run</code>. green reserves <code>:green/*</code> keys:</p>
+<p>The CLI reads <code>green.yml</code> by default (override with <code>-f/--file</code>), stamps the lifecycle event, and passes the map to <code>wf/run</code>. The reader is chosen by the file's extension, so both languages describe the same map:</p>
+<table>
+<tr><th>Extension</th><th>Reader</th></tr>
+<tr><td><code>.yml</code>, <code>.yaml</code></td><td>yamlstar. Its YAML 1.2 core schema leaves <code>no</code>, <code>yes</code> and <code>on</code> as the strings they look like. String keys are keywordized throughout the tree, so nested collections read the same as flat ones.</td></tr>
+<tr><td>anything else</td><td><code>clojure.edn/read-string</code>. Keywords arrive as written.</td></tr>
+</table>
+<p>green reserves <code>:green/*</code> keys:</p>
 <table>
 <tr><th>Key</th><th>Meaning</th></tr>
 <tr><td><code>:green/event</code></td><td>Keywordized first positional CLI argument: <code>:create</code>, <code>:delete</code>, <code>:rotate</code>, etc.</td></tr>
 <tr><td><code>:green/dry-run</code></td><td>Stamped by <code>--dry-run</code>; dry-run advice uses it to skip named steps.</td></tr>
+<tr><td><code>:green/state-file</code></td><td>Absolute path the desired state was read from, so a project can resolve its own relative paths against the file rather than the current directory.</td></tr>
 <tr><td><code>:green/exit</code></td><td>Integer outcome. Missing means success and is normalized to <code>0</code> after a step returns.</td></tr>
 <tr><td><code>:green/err</code></td><td>Error message when <code>:green/exit</code> is positive.</td></tr>
 <tr><td><code>:green/trace</code></td><td>Stack trace string when a thrown exception is converted to a green failure.</td></tr>
@@ -271,17 +278,30 @@
 </ul>
 
 <h2 id="cli">10. The CLI</h2>
-<pre><code>./green &lt;event&gt; [-f|--file green.edn] [--start step] [--end step] [--dry-run]
+<pre><code>./green &lt;event&gt; [-f|--file green.yml] [--start step] [--end step] [--dry-run]
 
 ./green create
-./green delete -f prod.edn
+./green delete -f prod.yml
+./green create -f green.edn
 ./green create --start zk/node --end zk/node
 ./green create --dry-run</code></pre>
 <ul>
   <li>The first positional argument is keywordized into <code>:green/event</code>.</li>
+  <li><code>-f/--file</code> defaults to <code>green.yml</code>. <code>read-state</code> selects the reader from the extension — YAML for <code>.yml</code>/<code>.yaml</code>, EDN otherwise — so an existing <code>green.edn</code> keeps working unchanged.</li>
   <li><code>--start</code> and <code>--end</code> coerce to keywords and override workflow boundaries.</li>
   <li><code>--dry-run</code> stamps <code>:green/dry-run true</code>; it has an effect only on steps advised with <code>green.dry-run</code>.</li>
   <li>Missing event, missing state file, or parse/runtime CLI errors return exit 2 from <code>run-cli</code>. <code>exec</code> prints <code>:green/err</code>/<code>:green/trace</code> to stderr and exits.</li>
+</ul>
+
+<h3>Secrets: the <code>COLORS_PAR_*</code> channel</h3>
+<p>The desired state is a file on disk, so it must never hold credentials. Every flat key can be supplied by an environment variable instead: <code>run-cli</code> overlays <code>COLORS_PAR_*</code> onto the map after the file is read.</p>
+<pre><code>COLORS_PAR_DO_TOKEN=xxx   →  {:do-token "xxx"}
+COLORS_PAR_SMTP_PORT=587  →  {:smtp-port 587}   ;; coerced to the existing value's type</code></pre>
+<ul>
+  <li>The name is the key uppercased with hyphens as underscores; <code>par-name</code> computes it.</li>
+  <li>Overrides are coerced to the type of the value they replace, so <code>COLORS_PAR_X=false</code> overlays the boolean and not the truthy string.</li>
+  <li><code>read-pars</code> is idempotent, so a package may re-apply it in a validation step without caring whether the CLI already did.</li>
+  <li>The prefix is deliberately <em>not</em> <code>GREEN_</code>: it is shared by every colour, so one variable reaches green, red and blue alike.</li>
 </ul>
 <p>A consumer launcher should use a git dependency with an explicit SHA until green is published to Clojars:</p>
 <pre><code>#!/usr/bin/env bb
@@ -298,7 +318,7 @@
 (cli/exec workflow)</code></pre>
 
 <h2 id="examples">11. Examples</h2>
-<p>Every example is a self-contained babashka CLI that depends on this checkout with <code>:local/root "../.."</code>. Four examples are mock-only OpenTofu demos; <code>floci-zookeeper</code> creates real local containers through floci.</p>
+<p>Every example is a self-contained babashka CLI that depends on this checkout with <code>:local/root "../.."</code>. Four examples are mock-only OpenTofu demos; <code>floci-zookeeper</code> creates real local containers through floci. Each one keeps its desired state in <code>green.edn</code> and passes it with an explicit <code>-f</code>, exercising the EDN half of <code>read-state</code>; downstream packages use <code>colors.yml</code> and the YAML half. Nothing else about a workflow changes with the language.</p>
 <table>
 <tr><th>Path</th><th>What it teaches</th></tr>
 <tr><td><code>examples/zookeeper</code></td><td>Dynamic fan-out from desired state, a join at <code>:zk/zoo-cfg</code>, Selmer scaffolding plus OpenTofu, backend-as-advice, and dry-run.</td></tr>
@@ -340,14 +360,16 @@ cd ../floci-zookeeper
   <li><code>test/green/scaffold_test.clj</code> covers template resolution, create/delete symmetry, and idempotent rendering.</li>
   <li><code>test/green/tofu_test.clj</code> covers backend advice rendering without invoking <code>tofu</code>.</li>
   <li><code>test/green/ansible_test.clj</code> covers playbook selection, PLAY RECAP parsing, inventory rendering, and inventory advice without invoking <code>ansible-playbook</code>.</li>
+  <li><code>test/green/cli_test.clj</code> covers argument parsing, both halves of <code>read-state</code> (YAML by extension, EDN otherwise), and the <code>COLORS_PAR_*</code> overlay including type coercion and idempotence.</li>
+  <li><code>test/green/yaml_test.clj</code> covers the block-style emitter's scalar quoting and deterministic ordering; <code>test/green/process_test.clj</code> covers timeouts, process-tree kills, and the exit -1 contract.</li>
   <li><code>test/green/zookeeper_test.clj</code> is the e2e suite: if <code>tofu</code> is on <code>PATH</code>, it runs real render/apply/output/destroy cycles over HCL containing only <code>locals</code> and <code>output</code> blocks.</li>
 </ul>
 <p>The real floci example is intentionally not in the automated suite because it requires Docker/floci, Ansible, provider downloads, and minutes of runtime; verify it manually with its <code>./green create</code>/<code>delete</code>.</p>
 
 <h2 id="layout">13. Project layout &amp; API index</h2>
 <pre><code>green/
-├── deps.edn            JVM deps: selmer, babashka/cli, cheshire (+ :test, :build)
-├── bb.edn              paths + `bb test` task
+├── deps.edn            JVM deps: selmer, babashka/cli, cheshire, yamlstar (+ :test, :build)
+├── bb.edn              paths, the yamlstar dep, and the `bb test` task
 ├── build.clj           tools.build: jar / install / deploy
 ├── index.html          this specification
 ├── docco.html          generated source tour
@@ -359,8 +381,12 @@ cd ../floci-zookeeper
 │   ├── ansible.clj     ansible-step, recap parsing, inventory advice
 │   ├── dry_run.clj     dry-run advice + advise
 │   ├── progress.clj    progress advice + advise
-│   └── cli.clj         run-cli, exec, arg parsing
-├── test/green/         advice, workflow, scaffold, cli, dry-run, progress, tofu, ansible, zookeeper
+│   ├── lifecycle.clj   package preflight: defaults, pars, validators, exit-2
+│   ├── providers.clj   provider-registry selection and tool environments
+│   ├── process.clj     shelling out with a timeout that kills the process tree
+│   ├── yaml.clj        the small block-style YAML subset generated files need
+│   └── cli.clj         run-cli, exec, arg parsing, read-state, read-pars
+├── test/green/         advice, workflow, scaffold, cli, dry-run, progress, tofu, ansible, process, yaml, zookeeper
 └── examples/           zookeeper, multi-zookeeper, once, multi-once, floci-zookeeper</code></pre>
 
 <h3>Distribution</h3>
@@ -404,6 +430,9 @@ cd ../floci-zookeeper
 <tr><td><code>green.progress/progress</code></td><td><code>around-advice</code></td></tr>
 <tr><td><code>green.progress/advise</code></td><td><code>workflow → workflow</code></td></tr>
 <tr><td><code>green.cli/usage</code></td><td>CLI usage string for errors.</td></tr>
+<tr><td><code>green.cli/read-state</code></td><td><code>file, text → desired-state map</code>; YAML for <code>.yml</code>/<code>.yaml</code>, EDN otherwise.</td></tr>
+<tr><td><code>green.cli/read-pars</code></td><td><code>opts [, env] → opts</code>; overlays <code>COLORS_PAR_*</code> onto flat keys. Idempotent.</td></tr>
+<tr><td><code>green.cli/par-name</code></td><td><code>keyword → environment variable name</code> (<code>:do-token</code> → <code>COLORS_PAR_DO_TOKEN</code>)</td></tr>
 <tr><td><code>green.cli/run-cli</code></td><td><code>workflow [, args] → final opts</code></td></tr>
 <tr><td><code>green.cli/exec</code></td><td><code>workflow [, args] → exits process</code></td></tr>
 </table>
