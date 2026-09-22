@@ -401,7 +401,21 @@
   (mapcat (fn [step] (step-units step (get by-step step))) ready))
 
 (defn- run-units [wf run-opts units]
-  (mapv deref (mapv (fn [unit] (future (run-unit wf run-opts unit))) units)))
+  (let [tasks (mapv (fn [unit] (future (run-unit wf run-opts unit))) units)
+        failures (atom [])
+        results (mapv (fn [task]
+                        (loop []
+                          (let [result (try {:value @task}
+                                            (catch InterruptedException e
+                                              (swap! failures conj e)
+                                              {:retry true})
+                                            (catch Throwable e
+                                              (swap! failures conj e)
+                                              {}))]
+                            (if (:retry result) (recur) (:value result)))))
+                      tasks)]
+    (when-let [error (first @failures)] (throw error))
+    results))
 
 (defn- scheduler-step [wf run-opts g live finished]
   (let [by-step (group-by :step live)

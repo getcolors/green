@@ -24,14 +24,23 @@
       (str/replace #"\x1b\]8;[^\x07]*\x07" "")
       (str/replace #"\x1b\[[0-9;?]*[ -/]*[@-~]" "")))
 
+(defn secret-env-removals
+  "Process :extra-env overlay removing COLORS_PAR_* and explicit secret names."
+  ([] (secret-env-removals []))
+  ([names]
+   (into {} (map (fn [name] [name nil]))
+         (concat names (filter #(str/starts-with? % "COLORS_PAR_")
+                               (keys (System/getenv)))))))
+
 (defn- process-builder
   [args {:keys [dir extra-env]}]
   (let [builder (ProcessBuilder. ^java.util.List (mapv str args))]
     (when dir
       (.directory builder (java.io.File. (str dir))))
-    (when (seq extra-env)
-      (.putAll (.environment builder)
-               (into {} (map (fn [[k v]] [(str k) (str v)])) extra-env)))
+    (doseq [[k v] extra-env]
+      (if (nil? v)
+        (.remove (.environment builder) (str k))
+        (.put (.environment builder) (str k) (str v))))
     builder))
 
 (defn- executable [name]
@@ -63,11 +72,23 @@
                    (finally (deliver done true))))]
     {:bytes bytes :stream stream :done done :reader reader}))
 
+(defn- session-command [args]
+  ;; macOS does not ship util-linux setsid. Its system Perl exposes POSIX
+  ;; setsid without a shell, a temporary script, or command-string evaluation.
+  (if-let [setsid (executable "setsid")]
+    (into [setsid "--"] args)
+    (when-let [perl (executable "perl")]
+      (into [perl "-MPOSIX" "-e"
+             "POSIX::setsid() >= 0 or die qq(setsid failed: $!); exec @ARGV; print STDERR qq(exec failed: $!); exit 127;"
+             "--"] args))))
+
 (defn- start-process [args opts inherit?]
-  (let [setsid (when-not inherit? (executable "setsid"))
-        kill (when setsid (executable "kill"))
-        grouped? (boolean (and setsid kill))
-        builder (process-builder (if grouped? (into [setsid "--"] args) args) opts)
+  (let [session (when-not inherit? (session-command args))
+        kill (when session (executable "kill"))
+        grouped? (boolean (and session kill))
+        _ (when (and (not inherit?) (not grouped?))
+            (throw (IOException. "Captured process execution requires kill and either setsid or Perl POSIX")))
+        builder (process-builder (if grouped? session args) opts)
         process (.start (if inherit? (.inheritIO builder) builder))]
     (if inherit?
       {:process process}
@@ -85,17 +106,21 @@
   (when group-kill
     (try
       (let [args (if group-ps
-                   [group-ps "-o" "stat=" "-g" (str (.pid process))]
+                   [group-ps "-axo" "pgid=,stat="]
                    [group-kill "-0" "--" (str "-" (.pid process))])
-            checker (.start (process-builder args {}))]
+            checker (.start (process-builder args {}))
+            output (future (slurp (.getInputStream checker)))]
         (try
           (.close (.getOutputStream checker))
           (if (.waitFor checker (min 200 (remaining-ms deadline)) TimeUnit/MILLISECONDS)
             (let [exit (.exitValue checker)]
               (if group-ps
                 (or (> exit 1)
-                    (some #(not (re-find #"^[ZX]" %))
-                          (remove str/blank? (map str/trim (str/split-lines (slurp (.getInputStream checker)))))))
+                    (some (fn [line]
+                            (let [[pgid status] (str/split (str/trim line) #"\s+")]
+                              (and (= pgid (str (.pid process)))
+                                   (not (re-find #"^[ZX]" (or status ""))))))
+                          (str/split-lines (deref output 200 (str (.pid process) " S")))))
                 (zero? exit)))
             true)
           (finally (.destroyForcibly checker))))
@@ -105,8 +130,8 @@
   ;; Java can close the leader's pipes before reader threads attach. Check its
   ;; session too, so this race cannot hide children behind an apparent EOF.
   (loop []
-    (if (and deadline (group-active? execution deadline))
-      (let [remaining (remaining-ms deadline)]
+    (if (group-active? execution (or deadline (+ (System/nanoTime) 200000000)))
+      (let [remaining (if deadline (remaining-ms deadline) 10)]
         (if (zero? remaining)
           false
           (do (Thread/sleep (min 10 remaining)) (recur))))
@@ -211,8 +236,8 @@
 (defn run-inherit
   "Run argv with the caller's terminal streams attached.
   Interruption stops the process tree and returns exit 130."
-  [args]
-  (execute args {} nil true))
+  ([args] (run-inherit args {}))
+  ([args opts] (execute args opts nil true)))
 
 (defn posix-quote
   "Quote one POSIX-shell argument."

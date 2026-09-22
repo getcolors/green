@@ -181,3 +181,8 @@ clojure -X:test     # under the JVM
 resource-free HCL. `test/green/tofu_test.clj` and
 `test/green/ansible_test.clj` cover backend/inventory/playbook helpers without
 invoking `tofu` or `ansible-playbook`.
+
+## Runtime resource scopes
+
+`green.scope/with-scope` owns ordered process/resource finalizers around a workflow.
+See [resource scopes](docs/resource-scopes.md).

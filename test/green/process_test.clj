@@ -84,7 +84,9 @@
 
 (defn- child-command [marker pid-file parent-exits? detached?]
   ["sh" "-c"
-   (str (when detached? "setsid ")
+   (str (when detached?
+          (str (str/join " " (map process/posix-quote
+                                 (#'green.process/session-command []))) " "))
         "sh -c " (process/posix-quote
                    (str "sleep 0.7; touch " (process/posix-quote marker) "; sleep 30"))
         " & echo $! > " (process/posix-quote pid-file) "; "
@@ -223,3 +225,9 @@
 (deftest exited-background-children-do-not-cause-false-timeouts
   (is (= 0 (:exit (process/run-with-timeout ["sh" "-c" "sleep 0.02 &"] {} 1000)))
       "zombies waiting for the host reaper are not running commands"))
+
+(deftest nil-environment-overrides-remove-inherited-values
+  (let [result (process/run ["sh" "-c" "test -z \"$HOME\" && printf '%s' \"$SCOPED_VALUE\""]
+                            {:extra-env {"HOME" nil "SCOPED_VALUE" "ok"}})]
+    (is (= 0 (:exit result)))
+    (is (= "ok" (:out result)))))

@@ -11,7 +11,8 @@
    [clojure.java.io :as io]
    [clojure.java.shell :as sh]
    [clojure.string :as str]
-   [green.scaffold :as sc]))
+   [green.scaffold :as sc]
+   [green.process :as process]))
 
 (def default-playbooks
   "Event -> playbook file, relative to the step's :dir."
@@ -43,7 +44,7 @@
         (re-seq recap-line-re (str out))))
 
 (defn- env-with [extra]
-  (merge (into {} (System/getenv)) extra))
+  (into {} (remove (comp nil? val)) (merge (into {} (System/getenv)) extra)))
 
 (defn- ansible! [dir env & args]
   (apply sh/sh "ansible-playbook" (concat args [:dir dir :env env])))
@@ -71,12 +72,17 @@
                        for the run — for ephemeral or emulated hosts whose
                        host keys change on every create. Omitted or true,
                        the environment is left untouched.
+    :env               per-command environment overlay (nil removes a variable)
+    :secret-env        extra names to remove, in addition to all COLORS_PAR_*
     :recap-key         namespaced key for the parsed recap"
   [opts {:keys [dir inventory playbooks private-key user extra-vars
-                host-key-checking recap-key]
+                host-key-checking recap-key env secret-env]
          :or {inventory "inventory.ini" recap-key :ansible/recap}}]
   (let [pb (playbook opts playbooks)
-        env (cond-> nil
+        env (cond-> (merge env (process/secret-env-removals
+                                      (concat secret-env
+                                              (filter #(str/starts-with? % "COLORS_PAR_")
+                                                      (keys env)))))
               (false? host-key-checking)
               (assoc "ANSIBLE_HOST_KEY_CHECKING" "False"))
         args (cond-> ["-i" inventory]

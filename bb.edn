@@ -18,6 +18,7 @@
                    [green.tofu-test]
                    [green.ansible-test]
                    [green.process-test]
+                   [green.scope-test]
                    [green.kubernetes-test]
                    [green.kubernetes-client-test]
                    [colors.local-service-test]
@@ -33,6 +34,7 @@
                                             'green.tofu-test
                                             'green.ansible-test
                                             'green.process-test
+                                            'green.scope-test
                                             'green.kubernetes-test
                                             'green.kubernetes-client-test
                                             'colors.local-service-test

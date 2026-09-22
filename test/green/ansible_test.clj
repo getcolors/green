@@ -170,3 +170,18 @@
       (is (not (clojure.string/includes? err "Failed to parse")))
       (is (= (merge (prefixed "host") (prefixed "group"))
              (get-in (cheshire.core/parse-string out) ["_meta" "hostvars" "localhost"]))))))
+
+(deftest child-environment-strips-secret-bindings
+  (let [seen (atom nil)]
+    (with-redefs [sh/sh (fn [& args]
+                         (reset! seen (last args))
+                         {:exit 0 :out "" :err ""})]
+      (ansible/ansible-step {} {:dir "."
+                               :env {"COLORS_PAR_TEST_SECRET" "hidden"
+                                     "CUSTOM_SECRET" "hidden"
+                                     "SSH_AUTH_SOCK" "/scoped/socket"}
+                               :secret-env ["CUSTOM_SECRET"]}))
+    (is (nil? (get @seen "COLORS_PAR_TEST_SECRET")))
+    (is (nil? (get @seen "CUSTOM_SECRET")))
+    (is (= "/scoped/socket" (get @seen "SSH_AUTH_SOCK"))))
+)
