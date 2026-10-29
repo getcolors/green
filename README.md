@@ -2,8 +2,8 @@
 
 A babashka-compatible Clojure library for building idempotent devops CLIs:
 desired state in EDN, workflows as step graphs threaded by one map,
-Selmer-scaffolded configuration files, OpenTofu as the muscle, and Ansible for
-SSH provisioning when you need it.
+Selmer-scaffolded configuration files, and optional event-aware OpenTofu and
+Ansible steps — a package can use them, but does not need them.
 
 **Docs:** [specification](https://amiorin.github.io/green/) ([repo](index.html)) · [source tour](https://amiorin.github.io/green/docco.html) ([repo](docco.html)).
 

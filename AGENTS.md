@@ -6,13 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `green` is a babashka-compatible Clojure library for building idempotent
 devops CLIs: desired state in YAML or EDN, workflows as step graphs threaded
-by a map, Selmer-scaffolded config files, OpenTofu as the muscle. The full
+by a map, Selmer-scaffolded config files, and optional event-aware OpenTofu
+and Ansible steps — a package can use them, but does not need them. The full
 specification lives in `index.html` (open it in a browser).
 
 `cli/read-state` picks the reader from the file extension — `.yml`/`.yaml`
 through yamlstar, anything else as EDN. Both are current: the `examples/` in
-this repository are still EDN (`green.edn`), while downstream packages such as
-ONCE use YAML (`colors.yml`). Do not describe either as the format.
+this repository are still EDN (`green.edn`), while downstream consumers such as
+`dotfiles` use YAML (`colors.yml`), as did the archived ONCE packages. Do not describe either as the format.
 
 The yamlstar version in `deps.edn` is **pinned exactly on purpose**. It follows
 the YAML 1.2 core schema, and downstream parity depends on that: the red and
@@ -41,7 +42,10 @@ maintain in `deps.edn`.
 Dependency rule: `green` has not been published to Clojars yet. External
 consumer docs and launcher snippets must use a git dependency with an explicit
 `:git/sha`; do not recommend `:mvn/version` until a Clojars release exists.
-In-repo examples may keep `:local/root "../.."` for development.
+In-repo examples may keep `:local/root "../.."` for development. The current
+external consumer is `getcolors/dotfiles`, whose `deps.edn` pins
+`io.github.getcolors/green` by `:git/url` and `:git/sha`; the archived ONCE
+packages are historical examples of the same pinning.
 
 Try the examples end-to-end:
 
