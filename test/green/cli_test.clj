@@ -4,7 +4,6 @@
    [clojure.test :refer [deftest is testing]]
    [green.cli :as cli]
    [green.lifecycle :as lifecycle]
-   [green.providers :as providers]
    [green.workflow :as wf])
   (:import
    [java.io File]))
@@ -99,11 +98,7 @@
   (is (= {:green/event :create :x 1 :green/exit 0}
          (lifecycle/preflight {:green/event :create}
                               {:defaults {:x 1} :validators [(fn [_ _ _] [])]}
-                              {})))
-  (is (= [:token] (providers/missing-keys {} [:token])))
-  (is (= {"TOKEN" "secret"}
-         (providers/tool-env {:provider {"x" {:tofu-env {:token "TOKEN"}}}}
-                             {:provider "x" :token "secret"} [:provider]))))
+                              {}))))
 
 (deftest desired-state-is-read-by-extension
   (testing "yaml keys arrive as keywords, nesting included"

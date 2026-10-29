@@ -1,7 +1,0 @@
-{:zk/workdir "work"
- :zk/ami "ami-ubuntu2404"
- :zk/instance-type "t3.micro"
- :zk/user "root"
- :zk/servers [{:id 1 :name "zk1"}
-              {:id 2 :name "zk2"}
-              {:id 3 :name "zk3"}]}

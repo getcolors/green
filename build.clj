@@ -6,10 +6,10 @@
     clojure -T:build deploy    # deploy to Clojars (CLOJARS_USERNAME/CLOJARS_PASSWORD)
 
   Consumers can skip Clojars entirely and use green as a git dep:
-  io.github.amiorin/green {:git/sha \"…\"} once the repo is pushed."
+  io.github.getcolors/green {:git/sha \"…\"} once the repo is pushed."
   (:require [clojure.tools.build.api :as b]))
 
-(def lib 'io.github.amiorin/green)
+(def lib 'io.github.getcolors/green)
 (def version "0.1.0")
 (def class-dir "target/classes")
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
@@ -24,13 +24,13 @@
                 :version version
                 :basis @basis
                 :src-dirs ["src"]
-                :scm {:url "https://github.com/amiorin/green"
-                      :connection "scm:git:git://github.com/amiorin/green.git"
-                      :developerConnection "scm:git:ssh://git@github.com/amiorin/green.git"
+                :scm {:url "https://github.com/getcolors/green"
+                      :connection "scm:git:git://github.com/getcolors/green.git"
+                      :developerConnection "scm:git:ssh://git@github.com/getcolors/green.git"
                       :tag (str "v" version)}
                 :pom-data [[:description
-                            "A babashka-compatible library for building idempotent devops CLIs."]
-                           [:url "https://github.com/amiorin/green"]
+                            "Canonical Clojure/Babashka colour of the getcolors workflow SDKs."]
+                           [:url "https://github.com/getcolors/green"]
                            [:licenses
                             [:license
                              [:name "MIT License"]

@@ -7,7 +7,7 @@
 ;; project code: forms are split with a small lexer and described from
 ;; docstrings, leading comments, and the curated notes below.
 
-(def generated-on "2026-07-06")
+(def generated-on "2026-10-29")
 
 (defn globbed [base pattern]
   (->> (fs/glob base pattern)
@@ -15,42 +15,27 @@
        sort
        vec))
 
-(def example-rank
-  {"examples/zookeeper/green" 0
-   "examples/multi-zookeeper/green" 1
-   "examples/once/green" 2
-   "examples/multi-once/green" 3
-   "examples/floci-zookeeper/green" 4})
-
-(defn example-sort-key [path]
-  [(get example-rank path 1000) path])
-
 (def file-order
   (vec (concat (globbed "." "src/**/*.clj")
                (globbed "." "test/**/*.clj")
-               (sort-by example-sort-key (globbed "." "examples/*/green")))))
+               ["examples/hello/green"]
+               (globbed "." "examples/hello/test/**/*.clj"))))
 
 (def file-notes
   {"src/green/advice.clj"
    "Pure Emacs-nadvice-style wrapping for Green steps. This namespace owns the registry entry format, ordering rules, inheritance merge helpers, and the actual function composition used by the workflow engine."
 
-   "src/green/ansible.clj"
-   "Event-aware Ansible integration plus deterministic inventory rendering. The shelling step is deliberately small; inventory writing is advice so workflows can attach or replace it without changing the graph."
-
    "src/green/cli.clj"
-   "The thin CLI layer: parse args, read desired state as YAML or EDN according to the file's extension, stamp the lifecycle event and dry-run bit, optionally slice the workflow, then delegate to green.workflow."
+   "The thin CLI layer: parse args, read desired state as YAML or EDN according to the file's extension, overlay COLORS_PAR_* environment variables, stamp the lifecycle event and dry-run bit, optionally slice the workflow, then delegate to green.workflow."
 
    "src/green/dry_run.clj"
    "Dry-run is modeled as ordinary advice. Side-effecting steps stay honest and reusable; the CLI merely stamps :green/dry-run into opts."
 
+   "src/green/lifecycle.clj"
+   "Package preflight as one composable function: defaults, the parameter overlay, ordered validators aggregated into a single exit-2 error, and an optional success callback."
+
    "src/green/progress.clj"
    "Progress output is also ordinary all-steps advice. It demonstrates that instrumentation can be layered onto any workflow without changing wiring."
-
-   "src/green/scaffold.clj"
-   "Selmer-backed file scaffolding for create/delete workflows. Specs are flat data and use the same target calculation for creation and removal."
-
-   "src/green/tofu.clj"
-   "OpenTofu integration and backend-file advice. The step executes init/apply/destroy; backend selection is kept outside the step through :before advice."
 
    "src/green/workflow.clj"
    "The fork/join workflow engine. Steps are plain opts->opts functions, wire-fn supplies the static graph, next-fn can route dynamically, and advice inheritance makes composed workflows behave like ordinary steps."
@@ -58,11 +43,8 @@
    "test/green/advice_test.clj"
    "Unit tests for every advice combinator, strict add ordering, :depth precedence, registry purity, and advice inheritance through embedded workflows."
 
-   "test/green/ansible_test.clj"
-   "Tests the Ansible helpers that do not require ansible-playbook: event-to-playbook choice, PLAY RECAP parsing, deterministic INI output, and inventory advice."
-
    "test/green/cli_test.clj"
-   "Covers the CLI contract without exiting the JVM: desired-state loading, event stamping, graph slicing, dry-run stamping, and usage errors."
+   "Covers the CLI contract without exiting the JVM: desired-state loading, COLORS_PAR_* overlay and coercion, event stamping, graph slicing, dry-run stamping, stage directories, lifecycle preflight, and usage errors."
 
    "test/green/dry_run_test.clj"
    "Tests that dry-run advice suppresses side effects only when :green/dry-run is present and remains removable like any other advice."
@@ -70,32 +52,14 @@
    "test/green/progress_test.clj"
    "Tests progress advice output and confirms the engine stamps :green/step before the advised function runs."
 
-   "test/green/scaffold_test.clj"
-   "Tests template keyword conventions, create/delete idempotence, parent-directory pruning, and missing-template diagnostics."
-
-   "test/green/tofu_test.clj"
-   "Tests backend advice rendering without invoking tofu. These are pure file-output checks for local, S3, and GCS backend configs."
-
    "test/green/workflow_test.clj"
    "Scheduler tests for linear graphs, failures, event-specific static graphs, dynamic routing, fork/join behavior, composition, slices, and real parallelism."
 
-   "test/green/zookeeper_test.clj"
-   "End-to-end fake ZooKeeper workflows. They run real Selmer and real tofu against locals/output-only HCL, so the workflow mechanics are exercised without creating infrastructure."
+   "examples/hello/green"
+   "Executable babashka launcher for the hello example: a lifecycle preflight, then uname (a read-only local CLI call) and a file write fork in parallel and join at a check step. Delete removes the file. Progress and dry-run are advice."
 
-   "examples/floci-zookeeper/green"
-   "Executable babashka CLI for the real floci ZooKeeper example: OpenTofu creates Docker-backed EC2 instances in a local AWS emulator, Ansible provisions them over SSH, and advice adds validation, setup, inventory, retry, progress, and dry-run layers."
-
-   "examples/multi-once/green"
-   "Executable babashka CLI composing the ONCE-style single-VPS workflow once per deployment. Parent advice swaps the child provider and backend under the same ids, and dry-run stays outermost."
-
-   "examples/multi-zookeeper/green"
-   "Executable babashka CLI that runs one reusable ZooKeeper cluster workflow per desired cluster via wf/step, showing inherited parent advice across embedded workflows."
-
-   "examples/once/green"
-   "Executable babashka CLI for a fake ONCE-style single-server deployment: compute and SMTP fork, DNS joins them, then SMTP post-processing and Ansible scaffolds run in parallel."
-
-   "examples/zookeeper/green"
-   "Executable babashka CLI for a fake ZooKeeper cluster. It fans out one tofu root per node, joins the observed outputs, and scaffolds zoo.cfg files for every member."})
+   "examples/hello/test/hello/launcher_test.clj"
+   "Drives the real ./green launcher as a subprocess in a scratch directory: dry-run, create, COLORS_PAR_* overlay, idempotent delete, and exit-2 preflight/usage errors."})
 
 (def source-form-notes
   {;; green.advice
@@ -108,28 +72,9 @@
    ["src/green/advice.clj" "wrap"]
    "The semantic core of each advice combinator. Given one advice function and the already-built inner chain, it returns the next outer function."
 
-   ;; green.ansible
-   ["src/green/ansible.clj" "recap-line-re"]
-   "Regular expression for the stable, machine-readable part of Ansible's PLAY RECAP lines. It intentionally ignores the rest of the playbook output."
-   ["src/green/ansible.clj" "env-with"]
-   "Builds the child-process environment by overlaying Ansible-specific settings on the current process environment."
-   ["src/green/ansible.clj" "ansible!"]
-   "Small shell wrapper around ansible-playbook. Keeping it isolated makes the public step easy to read and tests able to avoid the binary."
-   ["src/green/ansible.clj" "fail"]
-   "Converts a non-zero ansible-playbook result into Green's opts-based failure contract, preserving the command output as :green/err."
-   ["src/green/ansible.clj" "ini-name"]
-   "Normalizes keyword and non-keyword values to the strings Ansible INI inventory expects."
-   ["src/green/ansible.clj" "ini-vars"]
-   "Formats a var map as sorted key=value tokens, giving deterministic inventory output and stable tests."
-   ["src/green/ansible.clj" "host-line"]
-   "Renders one host entry: the host name followed by any per-host variables on the same line."
-   ["src/green/ansible.clj" "group-section"]
-   "Renders one inventory group and, when present, its [group:vars] section."
-   ["src/green/ansible.clj" "resolve-config"]
-   "Allows inventory data to be either a literal map or a function of opts, matching the backend-advice pattern in green.tofu."
 
    ;; green.cli
-   ["src/green/cli.clj" "cli-spec"]
+   ["src/green/cli.clj" "base-cli-spec"]
    "babashka.cli option schema. It keeps coercion and help text close to the parser and lets run-cli focus on workflow setup."
    ["src/green/cli.clj" "usage"]
    "Human-readable usage line returned as :green/err when the caller omits the lifecycle event."
@@ -140,49 +85,6 @@
    ["src/green/progress.clj" "logln"]
    "Synchronized println used by all-steps progress advice, which can run concurrently on forked branches."
 
-   ;; green.scaffold
-   ["src/green/scaffold.clj" "prune-empty-dir!"]
-   "After deleting a generated file, remove its immediate parent when it became empty. This keeps delete idempotent without recursively pruning user directories."
-   ["src/green/scaffold.clj" "target-path"]
-   "Renders one spec's target path through Selmer using the spec's own :data map."
-   ["src/green/scaffold.clj" "target-paths"]
-   "Precomputes all rendered target paths so create and delete report exactly the files they touched or would remove."
-   ["src/green/scaffold.clj" "delete-target!"]
-   "Deletes one generated target if it exists, then prunes the now-empty parent directory. Missing files are successful no-ops."
-   ["src/green/scaffold.clj" "create-target!"]
-   "Creates parent directories and writes one rendered template to its target path."
-   ["src/green/scaffold.clj" "delete-targets!"]
-   "Serially removes the rendered targets. The function is intentionally boring: ordering is deterministic and errors surface normally."
-   ["src/green/scaffold.clj" "create-targets!"]
-   "Pairs each original spec with its pre-rendered target so the report and the writes stay in lockstep."
-
-   ;; green.tofu
-   ["src/green/tofu.clj" "init-args"]
-   "Common OpenTofu init flags: non-interactive and no ANSI color, which makes logs and errors deterministic."
-   ["src/green/tofu.clj" "apply-args"]
-   "Common OpenTofu apply flags for idempotent, non-interactive creates."
-   ["src/green/tofu.clj" "destroy-args"]
-   "Common OpenTofu destroy flags for non-interactive deletes."
-   ["src/green/tofu.clj" "tofu!"]
-   "Small shell wrapper around the tofu binary, always executed in the step's working directory."
-   ["src/green/tofu.clj" "action-args"]
-   "Selects apply or destroy arguments from the event-derived delete? flag."
-   ["src/green/tofu.clj" "failed?"]
-   "Predicate for clojure.java.shell results: a positive process exit is a Green failure."
-   ["src/green/tofu.clj" "fail"]
-   "Converts a failing tofu command into Green's opts-based failure contract and keeps the most useful stderr/stdout text."
-   ["src/green/tofu.clj" "parse-outputs"]
-   "Turns tofu's JSON output shape into Green-friendly keyword keys with the raw output values."
-   ["src/green/tofu.clj" "hcl-value"]
-   "Escapes flat backend values into the tiny subset of HCL needed for backend.tf attributes."
-   ["src/green/tofu.clj" "hcl-attribute"]
-   "Formats one backend attribute line with stable indentation."
-   ["src/green/tofu.clj" "backend-hcl"]
-   "Renders the complete backend.tf body for a backend type and sorted flat config map."
-   ["src/green/tofu.clj" "resolve-config"]
-   "Allows backend config to be either literal data or a function of opts, which is how examples derive per-step state keys."
-   ["src/green/tofu.clj" "write-backend!"]
-   "Creates the tofu directory and writes backend.tf immediately before the tofu step runs."
 
    ;; green.workflow
    ["src/green/workflow.clj" "next-seq"]
@@ -271,67 +173,16 @@
    "One scheduler tick: group live entries, select ready work, run it in parallel, keep waiting entries, and collapse failed forks."})
 
 (def common-form-notes
-  {"script-dir" "Directory containing the executable script. In REPL contexts where babashka has no source path, it falls back to the current working directory."
-   "repo-root" "Repository root derived from the example directory; used to add green itself as a local dependency when the script runs under babashka."
-   "floci-endpoint" "Local AWS-emulator endpoint passed to the AWS provider and helper CLI calls."
-   "example-path" "Resolves a user-provided path relative to the example directory, while preserving absolute paths."
-   "workdir" "Root work directory from the desired-state opts, normalized through example-path."
-   "shared-dir" "Working directory for resources shared by all nodes, such as the floci key pair tofu root."
-   "node-dir" "Per-node working directory. Keeping each node in its own tofu root isolates state and generated files."
-   "ssh-key" "Path to the SSH private key generated for floci instances and consumed by Ansible."
-   "inventory-file" "Path where inventory advice writes the Ansible inventory for the current run."
-   "logln" "Synchronized output helper; examples can fork branches, so direct println calls would otherwise interleave."
-   "sh!" "Shell helper that returns stdout on success and throws ex-info on non-zero exit, letting the workflow engine turn it into a Green failure."
-   "tool?" "Predicate used by requirement gates to probe command availability without throwing."
-   "aws-env" "Fake AWS credentials and region for local floci/AWS-emulator CLI calls."
-   "running-instances?" "Checks floci for running or pending EC2 instances so setup can avoid restarting a live emulator."
-   "floci-healthy?" "Simple health probe for the local floci service."
-   "wait-floci!" "Polls floci until its health endpoint responds or the setup advice fails clearly."
-   "remove-ec2-containers!" "Cleans up stale Docker containers created by floci's EC2 emulation."
-   "restart-floci!" "Restarts the floci container after removing stale EC2 containers, then waits for health."
-   "ssh-open?" "Low-level TCP probe used before running Ansible against newly-created instances."
-   "four-letter" "Sends one ZooKeeper four-letter word command over TCP and returns the response text."
-   "server-mode" "Extracts leader/follower mode from ZooKeeper's srvr four-letter output."
-   "start-step" "Identity or setup step that gives the workflow a named graph root and a place to attach validation/setup advice."
-   "node-step" "Per-node step: scaffold that node's tofu root, apply or destroy it, and preserve destroy ordering so tofu still has its files."
-   "zoo-cfg-step" "Join step that renders ZooKeeper configuration after node branches have produced their observed outputs."
-   "wire-fn" "Static graph declaration for the workflow. The engine uses it both to run steps and to reason about possible joins."
-   "next-fn" "Dynamic routing function. It fans out branches from the desired state and stops routing when a branch has failed."
-   "workflow" "Assembled workflow value with graph wiring plus advice layers such as backends, dry-run, validation, progress, or inherited parent overrides."
-   "file-arg?" "Recognizes explicit desired-state file arguments so default-args does not add a duplicate -f option."
-   "default-args" "Adds the example's green.edn as the default desired-state file when the caller did not provide one."
-   "launched-as-script?" "Distinguishes direct babashka execution from REPL loading so examples can expose functions without immediately exiting."
-   "run" "REPL-friendly entrypoint that returns the final opts map instead of calling System/exit."
-   "-main" "Process entrypoint used when the file is executed as a script; delegates to green.cli/exec."
-   "cluster-wire-fn" "Static graph for one ZooKeeper cluster, reused by the parent multi-cluster workflow."
-   "cluster-next-fn" "Dynamic routing for one cluster: fan out one node branch per server, then let branches join at zoo-cfg."
-   "cluster-wf" "Reusable single-cluster workflow. It ships with a default backend advice that a parent can replace by reusing the same advice id."
-   "clusters-wire-fn" "Parent graph that embeds cluster-wf as an ordinary step and reports after all cluster branches join."
-   "clusters-next-fn" "Parent dynamic routing: fan out one embedded cluster workflow per desired cluster."
-   "apex" "Extracts the registrable-looking apex domain from a hostname by taking the last two labels."
-   "sending-domain" "Derives the SMTP sending domain from the first website hostname in desired state."
-   "keywordize" "Converts string-keyed maps from mock provider outputs into keyword-keyed maps convenient for templates."
-   "provider-templates" "Data-driven provider selection table for the multi-ONCE parent advice."
-   "provider-advice" "Before-advice that writes provider-specific compute HCL, demonstrating provider selection outside the workflow graph."
-   "digitalocean-provider" "Default compute provider advice for the single-ONCE example."
-   "oci-provider" "Alternate compute provider advice; re-adding it under the same id swaps the implementation."
-   "s3-config" "Builds per-deployment, per-step S3 backend keys so composed workflows do not collide in remote state."
-   "step-dir" "Builds a named component subdirectory under the current workdir."
-   "server-dir" "Working directory for the compute/server tofu root."
-   "smtp-dir" "Working directory for the SMTP tofu root."
-   "dns-dir" "Working directory for the DNS tofu root."
-   "smtp-post-dir" "Working directory for the SMTP post-processing tofu root."
-   "compute-step" "Bare tofu step for compute. Provider and backend files are written by advice immediately before it runs."
-   "tofu-with-spec" "Shared create/delete pattern: scaffold main.tf before apply, but destroy before deleting files."
-   "smtp-step" "Creates the mock SMTP provider resources and exposes records needed by DNS."
-   "dns-step" "Join step for compute and SMTP. It combines branch outputs, renders DNS HCL, and carries normalized server/SMTP data forward."
-   "smtp-post-step" "Second SMTP-related tofu root that runs only after DNS has the data needed to finalize the sending domain."
-   "ansible-local-step" "Scaffold-only step for operator-machine SSH config. It demonstrates that workflow steps need not shell out."
-   "ansible-remote-step" "Scaffold-only step for the remote playbook that would configure the box."
-   "once-wire-fn" "Static graph for one ONCE-style deployment; the multi example embeds this workflow once per deployment."
-   "once-wf" "Reusable single-deployment workflow with default provider and local backends. Parent workflows replace those advice ids to customize behavior."
-   "deployments-wire-fn" "Parent graph that embeds once-wf as a step and scopes each branch to one deployment through :in-fn."
-   "deployments-next-fn" "Dynamic fan-out for the multi-ONCE parent: one deployment branch per desired-state entry."})
+  {"script-dir" "Directory containing the executable launcher, so green and relative resources resolve no matter where the command runs."
+   "greeting-path" "Resolves the greeting file against the desired-state file's directory (:green/state-file), preserving absolute paths."
+   "non-blank" "Validator factory for lifecycle/preflight: returns an error string naming both the YAML key and its COLORS_PAR_* variable."
+   "start-step" "Preflight step: defaults, the idempotent COLORS_PAR_* overlay and validators. Failure stops the workflow with exit 2."
+   "uname-step" "A read-only local CLI call. Real packages call cloud CLIs or APIs the same way, directly from a step."
+   "write-step" "Side-effecting step that writes the greeting file; dry-run advice skips it."
+   "check-step" "Join step: merges both branch results from :green/branches, reads the file back and verifies it."
+   "remove-step" "Idempotent delete-event step."
+   "wire-fn" "Static graph declaration for the workflow, per event. The engine uses it both to run steps and to reason about possible joins."
+   "workflow" "Assembled workflow value with graph wiring plus progress and dry-run advice layers."})
 
 (def html-escape-map
   {\& "&amp;" \< "&lt;" \> "&gt;" \" "&quot;" \' "&#39;"})
@@ -733,16 +584,16 @@ main { min-width:0; }
          "</head>\n<body>\n"
          "<header class=\"hero\" id=\"top\">\n"
          "<h1>Green source tour</h1>\n"
-         "<p>A Docco-style, single-page source tour for Green. It is regenerated from the current Clojure sources, tests, and executable example <code>green</code> scripts; commentary is kept at namespace, function, var, test, or script-form granularity.</p>\n"
+         "<p>A Docco-style, single-page source tour for Green. It is regenerated from the current Clojure sources, tests, and the executable example launcher; commentary is kept at namespace, function, var, test, or script-form granularity.</p>\n"
          "<p><a href=\"index.html\">Back to the specification</a></p>\n"
-         "<div class=\"badges\"><span class=\"badge\">static HTML</span><span class=\"badge\">src + test + examples</span><span class=\"badge\">" (count file-order) " files</span><span class=\"badge\">" form-count " forms</span><span class=\"badge\">generated " generated-on "</span></div>\n"
+         "<div class=\"badges\"><span class=\"badge\">static HTML</span><span class=\"badge\">src + test + example</span><span class=\"badge\">" (count file-order) " files</span><span class=\"badge\">" form-count " forms</span><span class=\"badge\">generated " generated-on "</span></div>\n"
          "</header>\n"
          "<div class=\"layout\">\n"
          "<nav class=\"toc\" aria-label=\"Table of contents\">\n"
          "<h2>Files</h2><ol>\n" (toc-html file-order) "\n</ol><p style=\"margin-top:1rem\"><a href=\"#top\">Back to top</a></p></nav>\n"
          "<main>\n"
          (apply str (map (fn [p] (file-html p (get by-file p))) file-order))
-         "<footer class=\"footer\">Generated by <code>bb docco</code> from <code>src/green/*.clj</code>, <code>test/green/*.clj</code>, and <code>examples/*/green</code>. Edit source and <code>tasks/docco.clj</code> commentary, then regenerate this HTML.</footer>\n"
+         "<footer class=\"footer\">Generated by <code>bb docco</code> from <code>src/green/*.clj</code>, <code>test/green/*.clj</code>, and <code>examples/hello</code>. Edit source and <code>tasks/docco.clj</code> commentary, then regenerate this HTML.</footer>\n"
          "</main>\n</div>\n</body>\n</html>\n")))
 
 (spit "docco.html" (render))

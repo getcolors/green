@@ -1,0 +1,6 @@
+# Desired state for the hello example. Non-secret by rule: anything secret
+# arrives as a COLORS_PAR_* environment variable instead, e.g.
+#   COLORS_PAR_NAME=agent ./green create
+name: world
+# Relative paths resolve against this file's directory, not the shell's.
+greeting-file: work/hello.txt

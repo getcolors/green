@@ -4,36 +4,84 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>green — specification</title>
+<meta name="description" content="Specification of green, the canonical Clojure/Babashka colour of the getcolors workflow SDKs: steps as opts -> opts, wire-fn graphs, fan-out and joins, layered advice, YAML desired state with COLORS_PAR_* overlay.">
+<link rel="icon" href="https://www.getcolors.ai/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
   :root {
     color-scheme: light;
-    --bg: #fafaf7; --fg: #1d2321; --muted: #5c6660; --accent: #1d7a4f;
-    --card: #ffffff; --border: #dde3de; --code-bg: #f0f3f0; --code-fg: #1d2b24;
-    --th-bg: #eef2ee;
+    --ink: oklch(20% 0.01 260);
+    --code-ink: oklch(35% 0.01 260);
+    --muted: oklch(45% 0.01 260);
+    --soft: oklch(55% 0.01 260);
+    --line: oklch(91% 0.005 260);
+    --page: oklch(99% 0.002 90);
+    --surface: oklch(97.5% 0.003 260);
+    --panel: oklch(97% 0.005 260);
+    --red: oklch(60% 0.19 25);
+    --green: oklch(65% 0.17 145);
+    --blue: oklch(55% 0.18 260);
+    --accent: var(--green);
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    --sans: 'IBM Plex Sans', Helvetica, Arial, sans-serif;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 0 1rem 4rem; font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
-  main { max-width: 56rem; margin: 0 auto; }
-  h1 { font-size: 2.2rem; margin: 2.5rem 0 0; letter-spacing: -0.02em; }
-  h1 .v { color: var(--muted); font-size: 1rem; font-weight: 400; margin-left: .75rem; }
-  p.tagline { color: var(--muted); margin-top: .35rem; font-size: 1.1rem; }
-  h2 { font-size: 1.45rem; margin: 2.75rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--border); letter-spacing: -0.01em; }
-  h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
-  a { color: var(--accent); }
-  code, pre { font: 0.875em/1.55 "SF Mono", ui-monospace, Menlo, Consolas, monospace; background: var(--code-bg); color: var(--code-fg); border-radius: 5px; }
-  code { padding: .12em .35em; }
-  pre { padding: .9rem 1.1rem; overflow-x: auto; border: 1px solid var(--border); }
-  pre code { padding: 0; background: none; }
-  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
-  th, td { text-align: left; padding: .5rem .75rem; border: 1px solid var(--border); vertical-align: top; }
-  th { background: var(--th-bg); font-weight: 600; }
-  td code { white-space: nowrap; }
-  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.5rem; margin: 1.5rem 0; }
-  .toc ol { margin: .25rem 0; padding-left: 1.25rem; }
-  .note { border-left: 3px solid var(--accent); background: var(--card); padding: .65rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
-  .note strong:first-child { color: var(--accent); }
+  html { scroll-padding-top: 5rem; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.65 var(--sans); overflow-x: hidden; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { color: oklch(45% 0.18 260); text-decoration: underline; }
+
+  .site-header { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--line); background: oklch(99% 0.002 90 / 88%); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); }
+  .nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; max-width: 1120px; margin: 0 auto; padding: 16px 24px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+  .brand:hover { color: var(--ink); text-decoration: none; }
+  .brand img { border-radius: 4px; }
+  .brand span { font: 600 15px var(--mono); letter-spacing: -0.01em; }
+  .nav-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; font-size: 14px; }
+  .nav-links a { color: var(--muted); }
+  .nav-links a:hover { color: var(--blue); text-decoration: none; }
+  .nav-links a[aria-current="page"] { color: var(--accent); font-weight: 500; }
+
+  main { max-width: 56rem; margin: 0 auto; padding: 48px 16px 64px; }
+  .eyebrow { font: 12px var(--mono); text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+  h1, h2, h3 { font-family: var(--mono); font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+  h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 16px; color: var(--accent); }
+  h1 .v { display: block; margin-top: 8px; font: 400 14px var(--mono); color: var(--soft); }
+  h2 { font-size: 1.4rem; margin: 3rem 0 .9rem; padding-left: 14px; border-left: 3px solid var(--accent); }
+  h3 { font-size: 1.05rem; margin: 1.75rem 0 .5rem; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0 0 16px; }
+  p, li { max-width: 46rem; }
   ul, ol { padding-left: 1.4rem; }
-  li { margin: .2rem 0; }
+  li { margin: .25rem 0; }
+  code { font: .9em var(--mono); color: var(--code-ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: .05em .35em; overflow-wrap: anywhere; }
+  pre { margin: 1rem 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow-x: auto; max-width: 100%; }
+  pre code { font: 13px/1.7 var(--mono); background: none; border: 0; padding: 0; overflow-wrap: normal; }
+  .table-wrap { overflow-x: auto; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .75rem; border-bottom: 1px solid var(--line); }
+  th { font: 500 13px var(--mono); color: var(--muted); background: var(--surface); }
+  .toc { margin: 2rem 0; padding: 18px 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .toc strong { font: 500 13px var(--mono); text-transform: uppercase; color: var(--muted); }
+  .toc ol { columns: 2 16rem; margin: .5rem 0 0; }
+  .note { margin: 1rem 0; padding: 14px 18px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px 20px; font: 14px var(--mono); margin: 20px 0 0; }
+
+  .foot { border-top: 1px solid var(--line); padding: 28px 0; }
+  .foot-inner { max-width: 1120px; margin: 0 auto; padding-inline: 24px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; font-size: 13px; color: var(--soft); }
+  .foot a { color: var(--soft); }
+  .foot a:hover { color: var(--blue); text-decoration: none; }
+  .foot-home { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); }
+  .foot-home img { border-radius: 4px; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+
+  @media (max-width: 600px) {
+    .nav, .foot-inner { padding-inline: 16px; }
+    .nav-links { gap: 4px 16px; font-size: 13px; }
+    main { padding-top: 32px; }
+    th, td { padding: .45rem .5rem; }
+  }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-4VKP1WY4QJ"></script>
 <script>
@@ -45,379 +93,223 @@
 <script src="https://rybbit.getcolors.ai/api/script.js" data-site-id="9fb9c41a6d49" defer></script>
 </head>
 <body>
+<header class="site-header">
+  <div class="nav">
+    <a class="brand" href="https://www.getcolors.ai/" aria-label="Colors — home">
+      <img src="https://www.getcolors.ai/favicon.svg" width="20" height="20" alt="">
+      <span>Colors</span>
+    </a>
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="https://getcolors.github.io/green/" aria-current="page">Green</a>
+      <a href="https://getcolors.github.io/red/">Red</a>
+      <a href="https://getcolors.github.io/blue/">Blue</a>
+      <a href="https://github.com/pocketcontext/pocketdeploy">PocketDeploy</a>
+      <a href="https://github.com/getcolors/green">GitHub</a>
+    </nav>
+  </div>
+</header>
+
 <main>
+<p class="eyebrow">Workflow SDK · Clojure / Babashka</p>
+<h1>green<span class="v">specification · 2026-10-29</span></h1>
+<p class="lede">Coding agents write deployment code directly. Terraform and Ansible existed because hand-writing cloud automation was too slow and too fragile; an agent now writes the steps that call cloud CLIs and APIs itself. <strong>The colors are the foundation for that code</strong>: three workflow SDKs — green (Clojure), <a href="https://getcolors.github.io/red/">red</a> (TypeScript) and <a href="https://getcolors.github.io/blue/">blue</a> (Python) — sharing one model.</p>
+<p>green is the canonical colour. Build your own package on it, or start from <a href="https://github.com/pocketcontext/pocketdeploy">PocketDeploy</a>, the starter package built on blue. green has no OpenTofu or Ansible integration any more: OpenTofu and Ansible support was removed on 2026-10-29, and steps call the tools they need directly.</p>
+<p class="links"><a href="https://github.com/getcolors/green">Source</a><a href="docco.html">Source tour (Docco)</a><a href="https://www.getcolors.ai/">www.getcolors.ai</a></p>
 
-<h1>green <span class="v">specification · 2026-07-06</span></h1>
-<p class="tagline">A babashka-compatible Clojure library for building idempotent devops CLIs: desired state in YAML or EDN, workflows as data-threading step graphs, Selmer-scaffolded configuration, and optional event-aware OpenTofu and Ansible steps — a package can use them, but does not need them.</p>
-<p><a href="docco.html">Read the source tour (Docco-style)</a>.</p>
-
-<div class="toc">
+<nav class="toc" aria-label="Contents">
 <strong>Contents</strong>
 <ol>
   <li><a href="#philosophy">Philosophy</a></li>
-  <li><a href="#opts">Desired state &amp; the opts contract</a></li>
-  <li><a href="#steps">Steps</a></li>
-  <li><a href="#workflow">Workflows: wire-fn, next-fn, and composition</a></li>
-  <li><a href="#parallel">Parallelism, fan-out &amp; joins</a></li>
+  <li><a href="#opts">The opts contract</a></li>
+  <li><a href="#steps">Steps and errors</a></li>
+  <li><a href="#workflows">Workflows: wire-fn and next-fn</a></li>
+  <li><a href="#parallelism">Parallelism and joins</a></li>
+  <li><a href="#composition">Composition</a></li>
   <li><a href="#advice">Advice</a></li>
-  <li><a href="#scaffold">The scaffolding DSL</a></li>
-  <li><a href="#tofu">OpenTofu integration</a></li>
-  <li><a href="#ansible">Ansible integration</a></li>
-  <li><a href="#cli">The CLI</a></li>
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#testing">Testing strategy</a></li>
-  <li><a href="#layout">Project layout &amp; API index</a></li>
+  <li><a href="#config">YAML desired state and COLORS_PAR_*</a></li>
+  <li><a href="#helpers">Dry-run, progress, lifecycle</a></li>
+  <li><a href="#cli">CLI and the ./green launcher</a></li>
+  <li><a href="#example">The example</a></li>
+  <li><a href="#testing">Testing</a></li>
+  <li><a href="#api">API index</a></li>
 </ol>
-</div>
+</nav>
 
 <h2 id="philosophy">1. Philosophy</h2>
 <ul>
-  <li><strong>green is a library.</strong> Users define steps, wiring, and workflows in their own project; green supplies the engine, infrastructure helpers, and CLI plumbing.</li>
-  <li><strong>Everything is a map.</strong> The desired state is an EDN map loaded into <code>opts</code>. Every step reads and returns that map, possibly enriched with observed reality such as OpenTofu outputs or Ansible recaps.</li>
-  <li><strong>Idempotent apply.</strong> There is no plan phase in green itself. Re-running the same event should converge. <code>create</code> and <code>delete</code> are conventions; the event set is open.</li>
-  <li><strong>Unix exit-code semantics.</strong> Steps report success/failure with <code>:green/exit</code>; the workflow's final value becomes the process exit code.</li>
-  <li><strong>babashka-compatible.</strong> The library and tests run under babashka and the JVM.</li>
+  <li><strong>Data in, data out.</strong> All state crossing step boundaries is one immutable map, <code>opts</code>. A step reads it and returns a new one.</li>
+  <li><strong>The graph is data, routing is a function.</strong> A static <code>wire-fn</code> declares the happy path; an optional <code>next-fn</code> decides at run time where each branch goes.</li>
+  <li><strong>Unix-style outcomes.</strong> Success and failure travel in <code>opts</code> as an exit code, not as exceptions.</li>
+  <li><strong>Cross-cutting behaviour is advice.</strong> Dry-run, progress, validation, retries and locks wrap steps without touching their code or the wiring.</li>
+  <li><strong>Desired state is a file; secrets are not.</strong> A YAML file describes what should exist. Credentials arrive through <code>COLORS_PAR_*</code> environment variables.</li>
+  <li><strong>Steps own side effects.</strong> A step calls a CLI (<code>gcloud</code>, <code>doctl</code>, <code>oci</code>, <code>uname</code>) or an HTTP API directly. green provides the engine, not the integrations.</li>
+  <li><strong>Pure construction.</strong> Every constructor and advice function returns a new workflow value; workflows are safe to share and branch.</li>
 </ul>
 
-<h2 id="opts">2. Desired state &amp; the opts contract</h2>
-<p>The CLI reads <code>green.edn</code> by default (override with <code>-f/--file</code>), stamps the lifecycle event, and passes the map to <code>wf/run</code>. green reserves <code>:green/*</code> keys:</p>
-<table>
-<tr><th>Key</th><th>Meaning</th></tr>
-<tr><td><code>:green/event</code></td><td>Keywordized first positional CLI argument: <code>:create</code>, <code>:delete</code>, <code>:rotate</code>, etc.</td></tr>
-<tr><td><code>:green/dry-run</code></td><td>Stamped by <code>--dry-run</code>; dry-run advice uses it to skip named steps.</td></tr>
-<tr><td><code>:green/exit</code></td><td>Integer outcome. Missing means success and is normalized to <code>0</code> after a step returns.</td></tr>
-<tr><td><code>:green/err</code></td><td>Error message when <code>:green/exit</code> is positive.</td></tr>
-<tr><td><code>:green/trace</code></td><td>Stack trace string when a thrown exception is converted to a green failure.</td></tr>
-<tr><td><code>:green/step</code></td><td>Current step keyword, stamped before each step runs. Advice such as progress reads it.</td></tr>
-<tr><td><code>:green/branches</code></td><td>Vector of per-branch result maps at a join or collapsed failed fork. Sort by your own key if order matters.</td></tr>
-</table>
+<h2 id="opts">2. The opts contract</h2>
+<p>A workflow run threads a single map. Keys under <code>:green/*</code> are reserved for the engine; everything else uses the package's own namespace (<code>:hello/kernel</code>) or flat desired-state keys (<code>:name</code>, <code>:do-token</code>).</p>
+<div class="table-wrap"><table>
+<tr><th>Key</th><th>Set by</th><th>Meaning</th></tr>
+<tr><td><code>:green/exit</code></td><td>steps, engine</td><td>0 = success (missing means 0), &gt;0 = failure.</td></tr>
+<tr><td><code>:green/err</code></td><td>steps, engine</td><td>Human-readable error text.</td></tr>
+<tr><td><code>:green/trace</code></td><td>engine</td><td>Stack trace when a step threw.</td></tr>
+<tr><td><code>:green/event</code></td><td>CLI</td><td>Lifecycle event keyword from the first argument (<code>:create</code>, <code>:delete</code>, ...).</td></tr>
+<tr><td><code>:green/dry-run</code></td><td>CLI</td><td><code>true</code> with <code>--dry-run</code>.</td></tr>
+<tr><td><code>:green/state-file</code></td><td>CLI</td><td>Absolute path of the desired-state file, for resolving relative paths.</td></tr>
+<tr><td><code>:green/step</code></td><td>engine</td><td>Name of the step about to run (visible to advice).</td></tr>
+<tr><td><code>:green/branches</code></td><td>engine</td><td>Vector of branch results given to a join step, or attached to a collapsed fork.</td></tr>
+</table></div>
 
-<h2 id="steps">3. Steps</h2>
-<p>A step is a plain function <code>opts → opts</code>, named by a qualified keyword such as <code>:zk/node</code>. The name anchors wiring, logging, CLI slices, and advice.</p>
+<h2 id="steps">3. Steps and errors</h2>
+<p>A step is a function <code>opts -&gt; opts</code>, named in the graph by a qualified keyword.</p>
+<pre><code>(defn uname-step [opts]
+  (let [{:keys [exit out err]} (shell/sh "uname" "-s")]
+    (if (zero? exit)
+      (assoc opts :hello/kernel (str/trim out))
+      (assoc opts :green/exit exit :green/err (str "uname failed: " err)))))</code></pre>
 <ul>
-  <li>A returned map without <code>:green/exit</code> is treated as success.</li>
-  <li>Returning a non-map is an error.</li>
-  <li>Throwing is allowed: the runner catches the exception and returns <code>:green/exit</code> <code>1</code> (or <code>:green/exit</code> from exception data), plus <code>:green/err</code> and <code>:green/trace</code>.</li>
-  <li>Steps usually branch on <code>:green/event</code>. Library steps use the convention “any non-<code>:delete</code> event creates/applies; <code>:delete</code> destroys/deprovisions.”</li>
+  <li>A step fails by returning <code>:green/exit</code> &gt; 0. A branch stops after a failing step unless <code>next-fn</code> routes it.</li>
+  <li>A thrown exception is caught and converted to <code>:green/exit 1</code> (or the <code>:green/exit</code> in its <code>ex-data</code>) with <code>:green/err</code> and <code>:green/trace</code>. A non-map return is also a failure.</li>
+  <li>A successful step may omit <code>:green/exit</code>; the engine normalises it to 0.</li>
+  <li><code>wf/failed?</code> is the predicate for a positive exit, for steps composed of sub-steps.</li>
 </ul>
 
-<h2 id="workflow">4. Workflows: wire-fn, next-fn, and composition</h2>
-<pre><code>(require '[green.workflow :as wf])
-
-(def workflow
-  (wf/workflow {:start   :zk/start      ;; required
-                :end     nil            ;; optional inclusive slice boundary
-                :wire-fn wire-fn        ;; required static graph
-                :next-fn next-fn}))     ;; optional dynamic router
-
-(wf/run workflow opts)                  ;; =&gt; final opts</code></pre>
-
-<h3>wire-fn — the static graph</h3>
-<p><code>(wire-fn step run-opts)</code> returns a vector containing the step function followed by its default successors for this run. <code>run-opts</code> is the initial opts passed to <code>wf/run</code>, so the graph may depend on stable run-level inputs such as <code>:green/event</code>.</p>
+<h2 id="workflows">4. Workflows: wire-fn and next-fn</h2>
+<pre><code>(wf/workflow {:start   :hello/start   ; required
+              :end     nil            ; optional slice boundary: runs, then stops
+              :wire-fn wire-fn        ; required
+              :next-fn nil})          ; optional</code></pre>
+<p><code>(wire-fn step run-opts) -&gt; [step-fn &amp; next-steps]</code> is the static graph for a run. <code>run-opts</code> is the initial opts of the run, constant for its duration, so the graph may depend on stable inputs such as <code>:green/event</code>:</p>
 <pre><code>(defn wire-fn [step run-opts]
-  (case step
-    :zk/start   [start-step :zk/node]
-    :zk/node    [node-step  :zk/zoo-cfg]
-    :zk/zoo-cfg [zoo-cfg-step]
-    :ci/fork    [fork-step  :ci/a :ci/b]))</code></pre>
-<p>Multiple successors mean a static fork. The same graph is used for join scheduling, so keep the happy path visible even when <code>next-fn</code> adds dynamic behavior. Do not base <code>wire-fn</code> on values produced after the run starts; route those cases in <code>next-fn</code>.</p>
+  (case [(:green/event run-opts) step]
+    [:create :hello/start]  [start-step :hello/uname :hello/write]
+    [:create :hello/uname]  [uname-step :hello/check]
+    [:create :hello/write]  [write-step :hello/check]
+    [:create :hello/check]  [check-step]
+    [:delete :hello/start]  [start-step :hello/remove]
+    [:delete :hello/remove] [remove-step]))</code></pre>
+<p><code>(next-fn step default-next opts) -&gt; [[next-step opts] ...]</code> is optional dynamic routing: fan out one branch per item, branch on a result, or route failures. <code>default-next</code> is the wire-fn's successor list. Without a next-fn, a failed branch stops and a successful one follows <code>default-next</code> with the same opts.</p>
+<pre><code>(defn next-fn [step default-next opts]
+  (cond
+    (wf/failed? opts) []
+    (= step :app/start) (for [n (:nodes opts)] [:app/node (assoc opts :app/node n)])
+    :else (map (fn [s] [s opts]) default-next)))</code></pre>
+<p><code>(wf/run workflow opts)</code> runs from <code>:start</code> and returns the final opts; its <code>:green/exit</code> is the workflow's exit code.</p>
 
-<h3>next-fn — the dynamic router</h3>
-<p>When present, <code>next-fn</code> decides successors after each non-end step:</p>
-<pre><code>(next-fn step default-next opts) ;; =&gt; seq of [next-step opts] pairs</code></pre>
-<ul>
-  <li>Return no pairs to terminate a branch, one pair to continue, or many pairs to fan out in parallel.</li>
-  <li>Because it sees the step result, including <code>:green/exit</code>, <code>next-fn</code> can route failures to cleanup, retry, or halt.</li>
-  <li>Without <code>next-fn</code>, positive <code>:green/exit</code> stops that path; otherwise the default successors run.</li>
-</ul>
-
-<h3>Composition — a workflow is a step</h3>
-<pre><code>(wf/step sub-wf)
-(wf/step sub-wf
-         {:in-fn  (fn [opts] sub-opts)
-          :out-fn (fn [opts sub-result] parent-result)})</code></pre>
-<ul>
-  <li>The sub-workflow's result is just a step result, so failures propagate through parent routing naturally.</li>
-  <li>With default <code>:in-fn</code>, ambient keys such as <code>:green/event</code> and <code>:green/dry-run</code> flow into the child. If custom <code>:in-fn</code> builds opts from scratch, carry the ambient keys the child needs.</li>
-  <li>Advice inheritance is preserved even when <code>:in-fn</code> rebuilds opts from scratch. This is what lets a parent impose dry-run, backend, audit, or provider advice on embedded workflows.</li>
-</ul>
-
-<h3>Slices</h3>
-<p>The optional <code>:end</code> step is inclusive: it runs, then the workflow stops. The CLI's <code>--start</code> and <code>--end</code> override workflow boundaries for safe idempotent slice runs.</p>
-
-<h2 id="parallel">5. Parallelism, fan-out &amp; joins</h2>
-<ul>
-  <li><strong>Static fork:</strong> <code>wire-fn</code> lists several successors.</li>
-  <li><strong>Dynamic fan-out:</strong> <code>next-fn</code> returns several <code>[step opts]</code> pairs.</li>
-  <li><strong>Join:</strong> branches from different origins that converge on the same step run that step once, using the deepest shared fork's opts plus <code>:green/branches</code>.</li>
-  <li><strong>Failure:</strong> a failed branch inside a fork lets siblings finish their current step, collapses the fork, skips the join, and propagates the worst exit with all branch results under <code>:green/branches</code>.</li>
-</ul>
-<div class="note"><strong>Join detection.</strong> Convergence is by qualified step name. The scheduler waits while another live branch can statically reach the same step through this run's <code>wire-fn</code> graph; dynamic detours not visible in that graph may require explicit routing care.</div>
-
-<h3>Scheduler algorithm in plain English</h3>
+<h2 id="parallelism">5. Parallelism and joins</h2>
+<p>Several successors fork: each branch runs in its own <code>future</code>. The scheduler:</p>
 <ol>
-  <li>Start with one live task: run <code>:start</code> with the initial opts.</li>
-  <li>Loop while work remains, tracking <code>live</code> and <code>finished</code> branch entries.</li>
-  <li>Group live entries by step.</li>
-  <li>Run only ready steps: if a different live branch can still reach a step, wait so it can join.</li>
-  <li>Run ready units concurrently with <code>future</code>.</li>
-  <li>Expand each result into zero, one, or many next entries.</li>
-  <li>When different origins arrive at one step, run a join unit once.</li>
-  <li>Collapse failed forks before scheduling more work.</li>
-  <li>Finalize to one opts map: first failure wins, otherwise the last success.</li>
+  <li>keeps live branches and finished branches, grouping live ones by step;</li>
+  <li>runs a step only when no other live branch can still reach it through the run's static wire-fn edges, so longer branches arrive before a join runs;</li>
+  <li>runs ready work concurrently;</li>
+  <li>on zero successors finishes a branch, on one continues, on several forks;</li>
+  <li>runs a step reached by branches of different origins <strong>once</strong>, as a join, with the fork-point opts plus <code>:green/branches</code> (each branch's result);</li>
+  <li>collapses a fork in which a branch failed: running siblings finish their current step, no further fork work starts, the join is skipped, and the result carries the worst exit plus all branch results;</li>
+  <li>returns the single terminal result, or with several terminals the first failure, otherwise the last success.</li>
 </ol>
+<p>A join step typically merges its branches: <code>(apply merge opts (:green/branches opts))</code>.</p>
 
-<h3>Independent pipelines inside a fan-out</h3>
-<p>When <code>next-fn</code> fans out N branches and each branch traverses multiple steps in sequence (e.g. <code>:validate → :transform → :load</code>), the engine joins at the second step. The N <code>:validate</code> entries share the same fan-out parent, so they run independently; but the N <code>:transform</code> entries arrive from N different <code>:validate</code> units, so <code>same-origin?</code> is false and the scheduler treats them as convergence — running <code>:transform</code> once as a join instead of N times independently.</p>
-<p>The fix is <code>wf/step</code>: wrap the multi-step pipeline in a sub-workflow and wire the <code>wf/step</code> as a single step in the parent. The N branches all land on that one step name, sharing the same fan-out parent, so <code>same-origin?</code> is true and they run independently. Inside each branch the sub-workflow runs its own scheduler with no other branches to converge with. The parent's advice on the sub-workflow's step names is inherited by name — dry-run, backends, gates, progress all carry over without re-registration.</p>
-<pre><code>;; The per-item pipeline as a sub-workflow
-(def pipeline-wf
-  (wf/workflow {:start :validate
-                :wire-fn (fn [step _]
-                           (case step
-                             :validate  [validate-step :transform]
-                             :transform [transform-step :load]
-                             :load      [load-step]))}))
+<h2 id="composition">6. Composition</h2>
+<p><code>(wf/step sub-workflow {:in-fn f :out-fn g})</code> turns a whole workflow into an ordinary step: wire it, advise it, fan it out. <code>:in-fn</code> shapes the opts entering the sub-workflow; <code>:out-fn (fn [opts sub-result] ...)</code> merges the result back (default: the sub-result is the step's result). Its <code>:green/exit</code> propagates. A custom <code>:in-fn</code> should carry ambient keys such as <code>:green/event</code> and <code>:green/dry-run</code> if the sub-workflow needs them.</p>
 
-;; Wire it as a single step in the parent
-(defn wire-fn [step _run-opts]
-  (case step
-    :start   [start-step :process]
-    :process [(wf/step pipeline-wf)]))
-
-;; Fan out one :process per item
-(defn next-fn [step _default-next opts]
-  (when (= step :start)
-    (mapv (fn [item] [:process (assoc opts :item item)])
-          (:items opts))))</code></pre>
-<div class="note"><strong>When you don't need <code>wf/step</code>.</strong> If the number of branches is fixed and known at design time, distinct step names work: <code>:deploy-staging</code> and <code>:deploy-production</code> never converge, so they run independently without a sub-workflow. <code>wf/step</code> is needed when the count is dynamic — N items, N nodes, N tenants.</div>
-
-<p>A join consumes the deepest fork shared by all incoming branches and preserves its enclosing forks. Failed joins use the highest exit code and that branch's error and trace. Equal codes select the first incoming branch.</p>
-
-<p>YAML plain scientific notation, octal and hexadecimal values are numeric. Date-like and sexagesimal values remain strings. Quoted scalars remain strings. Unknown CLI options return exit 2 before workflow execution.</p>
-
-<p>Process helpers return 127 when a command cannot start, 124 on timeout and 130 on interruption. The timeout covers process exit and output capture. Cleanup waits up to one additional second for pipes, plus a bounded group-kill command. Captured commands use POSIX process groups when <code>setsid</code> and <code>kill</code> are available. Timed commands also check for surviving session members; <code>ps</code> distinguishes running children from unreaped zombies when available. Other platforms and inherited-terminal execution use Java descendant handles, which cannot recover children already reparented after the leader exits. A child that starts its own session can escape group cleanup.</p>
-
-<h2 id="advice">6. Advice</h2>
-<p>Advice wraps step functions without changing graph wiring. Registries are immutable workflow data; adding/removing advice returns a new workflow.</p>
-<pre><code>(-> workflow
-    (wf/advice-add :zk/node :before ::backend write-backend!)
-    (wf/advice-add-all :around ::progress progress)
-    (wf/advice-remove :zk/node ::backend)
-    (wf/advice-remove-all ::progress))</code></pre>
-<table>
-<tr><th>How</th><th>Effect</th><th>Use cases</th></tr>
-<tr><td><code>:around</code></td><td><code>(advice base opts)</code></td><td>Dry-run, retry, timing, locks; may call the base zero, one, or many times.</td></tr>
-<tr><td><code>:override</code></td><td><code>(advice opts)</code>, base never runs</td><td>Replace/stub a step.</td></tr>
-<tr><td><code>:before</code></td><td>Advice side effect, then base; advice return ignored</td><td>Setup: backend files, inventories, directories, locks.</td></tr>
-<tr><td><code>:after</code></td><td>Base, then advice side effect; base return flows out</td><td>Audit, metrics, notifications, cleanup.</td></tr>
-<tr><td><code>:before-while</code></td><td>Continue inward only while advice returns truthy</td><td>Validation and policy gates.</td></tr>
-<tr><td><code>:before-until</code></td><td>Use advice result when it is truthy; otherwise base</td><td>Fast path / already converged no-op.</td></tr>
-<tr><td><code>:after-while</code></td><td>Run advice only when the inward result is green-true</td><td>Success-only verification or registration.</td></tr>
-<tr><td><code>:after-until</code></td><td>Use inward result if green-true; otherwise advice fallback</td><td>Recovery or alternate result.</td></tr>
-<tr><td><code>:filter-args</code></td><td>Transform opts before base</td><td>Normalize/scope inputs.</td></tr>
-<tr><td><code>:filter-return</code></td><td>Transform base result</td><td>Normalize/enrich outputs.</td></tr>
-</table>
-<p>For <code>:after-while</code> and <code>:after-until</code>, a map is true when <code>:green/exit</code> is missing or zero and false when it is positive; non-map values keep Clojure truthiness for direct <code>green.advice/compose</code> use.</p>
-<p>Stacking is Emacs-like: at equal <code>:depth</code>, newest advice is outermost. <code>:depth</code> (-100..100, default 0) overrides add order: lower depths run farther outside, higher depths farther inside. Re-adding the same id replaces the old entry and moves it according to the new sequence/depth.</p>
-<p><strong>Advice inheritance through <code>wf/step</code>.</strong> The enclosing run stamps its effective advice into opts under a private key, and the nested run merges that advice over the child's own registries. Ancestor entries are outermost at equal depth; same-id ancestor entries replace child entries. Use <code>wf/advice-plan</code> with a workflow or chain such as <code>[parent child]</code> to inspect the composed stack.</p>
+<h2 id="advice">7. Advice</h2>
+<p>Emacs <code>nadvice</code>-style wrappers, attached by id. <code>(wf/advice-add wf step how id f [props])</code> targets one step; <code>(wf/advice-add-all wf how id f [props])</code> every step. <code>advice-remove</code> and <code>advice-remove-all</code> remove by id; re-adding an id replaces it.</p>
+<div class="table-wrap"><table>
+<tr><th>how</th><th>Behaviour (FUNCTION = advice, OLDFUN = inner chain)</th><th>Typical use</th></tr>
+<tr><td><code>:around</code></td><td><code>(FUNCTION OLDFUN opts)</code></td><td>dry-run, retry, timing, locks</td></tr>
+<tr><td><code>:before</code></td><td>FUNCTION for effect, then OLDFUN</td><td>setup, prerequisites</td></tr>
+<tr><td><code>:after</code></td><td>OLDFUN, then FUNCTION for effect; returns OLDFUN's value</td><td>audit, metrics, cleanup</td></tr>
+<tr><td><code>:override</code></td><td>FUNCTION only</td><td>stubs, replacements</td></tr>
+<tr><td><code>:before-while</code></td><td>OLDFUN only if FUNCTION is truthy</td><td>precondition gates</td></tr>
+<tr><td><code>:before-until</code></td><td>OLDFUN only if FUNCTION is falsy</td><td>fast paths, no-ops</td></tr>
+<tr><td><code>:after-while</code></td><td>FUNCTION only if OLDFUN succeeded (<code>:green/exit</code> 0)</td><td>success-only follow-ups</td></tr>
+<tr><td><code>:after-until</code></td><td>FUNCTION only if OLDFUN failed</td><td>recovery, fallback</td></tr>
+<tr><td><code>:filter-args</code></td><td><code>(OLDFUN (FUNCTION opts))</code></td><td>normalise or scope input</td></tr>
+<tr><td><code>:filter-return</code></td><td><code>(FUNCTION (OLDFUN opts))</code></td><td>normalise or enrich output</td></tr>
+</table></div>
 <ul>
-  <li><code>green.dry-run/advise</code> attaches <code>:around</code> advice id <code>:green.dry-run/skip</code> to named steps. With <code>:green/dry-run</code>, it prints <code>dry-run: would run :step (event)</code> and returns exit 0 without calling the step.</li>
-  <li><code>green.progress/advise</code> attaches all-step <code>:around</code> advice id <code>:green.progress/progress</code>. It prints <code>&gt;&gt;&gt; :step (event)</code> before and <code>&lt;&lt;&lt; :step (Nms)</code> after, reading <code>:green/step</code>.</li>
+  <li><strong>Ordering.</strong> Per-step and all-steps advice stack in strict add order: the most recently added is outermost. <code>{:depth n}</code> (−100..100, default 0) overrides that: lower is further outside.</li>
+  <li><strong>Scope.</strong> Registries are values inside the workflow, never process-global.</li>
+  <li><strong>Inheritance.</strong> Through <code>wf/step</code> embeds, an enclosing run's advice applies to the embedded workflow's steps of the same name at any depth. At equal depth ancestor advice is outside child advice; an ancestor entry with the same id replaces the child's.</li>
+  <li><strong>Inspection.</strong> <code>(wf/advice-plan wf-or-chain step)</code> returns the composed stack, outermost first, with <code>:scope</code> (<code>:step</code>/<code>:all</code>) and <code>:level</code>.</li>
 </ul>
 
-<h2 id="scaffold">7. The scaffolding DSL</h2>
-<p><code>green.scaffold/scaffold</code> materializes or removes a flat sequence of file specs:</p>
-<pre><code>(sc/scaffold opts
-  [{:template :zk/main.tf
-    :target   "{{workdir}}/nodes/{{node.id}}/main.tf"
-    :data     {:workdir (:zk/workdir opts) :node node}}])</code></pre>
-<table>
-<tr><th>Key</th><th>Meaning</th></tr>
-<tr><td><code>:template</code></td><td>Qualified keyword resolved to a classpath resource: <code>:zk/main.tf</code> → <code>zk/main.tf</code>, <code>:my.app/zoo.cfg</code> → <code>my/app/zoo.cfg</code>.</td></tr>
-<tr><td><code>:target</code></td><td>Output path, itself rendered with Selmer against <code>:data</code>.</td></tr>
-<tr><td><code>:data</code></td><td>Selmer data for both body and target path.</td></tr>
-</table>
-<p>On <code>:green/event :delete</code>, the same specs name targets to remove. The implementation prunes the immediate parent directory if it becomes empty. Return keys are <code>:green.scaffold/written</code> or <code>:green.scaffold/deleted</code>.</p>
+<h2 id="config">8. YAML desired state and COLORS_PAR_*</h2>
+<p><code>cli/read-state</code> reads <code>.yml</code>/<code>.yaml</code> with yamlstar (YAML 1.2 core schema, pinned exactly so the red and blue ports read identical values) and anything else as EDN. Map keys become keywords at every depth. Under the core schema <code>no</code>, <code>yes</code> and <code>on</code> stay strings.</p>
+<pre><code># green.yml — non-secret by rule
+name: world
+greeting-file: work/hello.txt</code></pre>
+<p><code>cli/read-pars</code> overlays every <code>COLORS_PAR_&lt;UPPER_SNAKE&gt;</code> environment variable onto the matching flat key: <code>COLORS_PAR_DO_TOKEN</code> → <code>:do-token</code>. Values are coerced to the type of the value they replace (booleans and integers), and applying the overlay twice changes nothing. <code>cli/par-name</code> maps a key back to its variable name. The prefix is shared by all three colours.</p>
+<div class="note"><strong>Secrets</strong> never go in the desired-state file. Keys are kebab-case; credentials are supplied only as <code>COLORS_PAR_*</code> variables.</div>
 
-<h2 id="tofu">8. OpenTofu integration</h2>
-<pre><code>(require '[green.tofu :as tofu])
+<h2 id="helpers">9. Dry-run, progress, lifecycle</h2>
+<h3>green.dry-run</h3>
+<p><code>(dry-run/advise wf steps)</code> attaches <code>:around</code> advice with id <code>:green.dry-run/skip</code> to each named step. With <code>:green/dry-run</code> set, the step prints <code>dry-run: would run &lt;step&gt; (&lt;event&gt;)</code> and returns exit 0 without running. Declare it last so it is outermost. Unadvised read-only steps still run.</p>
+<h3>green.progress</h3>
+<p><code>(progress/advise wf)</code> adds all-steps <code>:around</code> advice (id <code>:green.progress/progress</code>) printing <code>&gt;&gt;&gt; step (event)</code> on entry and <code>&lt;&lt;&lt; step (Nms)</code> on exit. Output is synchronised across parallel branches.</p>
+<h3>green.lifecycle</h3>
+<p><code>(lifecycle/preflight opts {:defaults :overlay :validators :after-validate} [env])</code> merges defaults under opts, applies the overlay (typically <code>cli/read-pars</code>), then runs every validator <code>(fn [opts env context])</code> in order, collecting the error strings it returns. Any error yields exit 2 with all errors joined; otherwise <code>after-validate</code> runs, or exit 0 is set. <code>context</code> carries <code>:event</code> and <code>:real?</code> (<code>lifecycle/real-run?</code>, false under dry-run).</p>
 
-(tofu/tofu-step opts {:dir "work/nodes/1"})
-(tofu/tofu-step opts {:dir "work/nodes/1" :output-key :zk/node-outputs})</code></pre>
-<ul>
-  <li>Any non-<code>:delete</code> event: <code>tofu init -input=false -no-color</code>, then <code>tofu apply -auto-approve -input=false -no-color</code>, then <code>tofu output -json</code>.</li>
-  <li><code>:delete</code>: <code>tofu init</code>, then <code>tofu destroy -auto-approve</code>.</li>
-  <li>Apply outputs are parsed to <code>{keyword value}</code> and assoc'd under <code>:tofu/outputs</code> by default. If you override <code>:output-key</code>, keep it namespaced.</li>
-  <li>Non-zero process exits become <code>:green/exit</code> and <code>:green/err</code>.</li>
-  <li>A launch failure — no such <code>:dir</code>, or no <code>tofu</code> binary on <code>PATH</code> — is a failed exit, never a raw exception: the runner reports exit <code>127</code> with the start error as <code>:err</code>, the same shape as red's and blue's runtimes and as <code>green.process/run</code>. <code>tofu-step</code> then returns the ordinary <code>tofu init failed:</code> outcome, and <code>outputs</code> throws its <code>tofu output failed:</code> <code>ex-info</code> carrying <code>{:dir dir}</code> — the one shape a caller reading tofu state may rely on.</li>
-  <li>Backends are not hardwired. <code>backend-advice</code> writes <code>backend.tf.json</code> for any backend type and config map (or function of opts), preserving native JSON values and nested collections. Helpers ship for local, S3, and GCS.</li>
-</ul>
-
-<h2 id="ansible">9. Ansible integration</h2>
-<pre><code>(require '[green.ansible :as ansible])
-
-(ansible/ansible-step opts
-  {:dir "ansible"
-   :inventory "inventory.ini"
-   :private-key "work/ssh/id_ed25519"
-   :host-key-checking false})</code></pre>
-<ul>
-  <li>Any non-<code>:delete</code> event runs the create playbook (<code>create.yml</code> by default); <code>:delete</code> runs the delete playbook (<code>delete.yml</code> by default). Override with <code>:playbooks</code>.</li>
-  <li>Options map to <code>ansible-playbook</code>: <code>:inventory</code>, <code>:private-key</code>, <code>:user</code>, <code>:extra-vars</code> (JSON <code>-e</code>), and <code>:host-key-checking false</code> (exports <code>ANSIBLE_HOST_KEY_CHECKING=False</code>).</li>
-  <li>On success, PLAY RECAP is parsed into per-host counters under <code>:ansible/recap</code> by default; override with namespaced <code>:recap-key</code>.</li>
-  <li><code>inventory-ini</code> renders deterministic INI from <code>{group {:hosts [{:name .. :vars {..}}] :vars {..}}}</code>. Strings preserve whitespace, quotes, backslashes and literal-looking values such as <code>"123"</code>. Host values include shell quoting around their Python literal; group values use the literal directly.</li>
-  <li><code>inventory-advice</code> is a <code>:before</code> advice that writes an inventory file from data or a function of opts, mirroring OpenTofu backend advice.</li>
-</ul>
-
-<h2 id="cli">10. The CLI</h2>
-<pre><code>./green &lt;event&gt; [-f|--file green.edn] [--start step] [--end step] [--dry-run]
-
-./green create
-./green delete -f prod.edn
-./green create --start zk/node --end zk/node
-./green create --dry-run</code></pre>
-<ul>
-  <li>The first positional argument is keywordized into <code>:green/event</code>.</li>
-  <li><code>--start</code> and <code>--end</code> coerce to keywords and override workflow boundaries.</li>
-  <li><code>--dry-run</code> stamps <code>:green/dry-run true</code>; it has an effect only on steps advised with <code>green.dry-run</code>.</li>
-  <li>Missing event, missing state file, or parse/runtime CLI errors return exit 2 from <code>run-cli</code>. <code>exec</code> prints <code>:green/err</code>/<code>:green/trace</code> to stderr and exits.</li>
-</ul>
-<p>A consumer launcher should use a git dependency with an explicit SHA until green is published to Clojars:</p>
-<pre><code>#!/usr/bin/env bb
-(babashka.deps/add-deps
-  '{:deps {io.github.getcolors/green {:git/sha "REPLACE_WITH_COMMIT_SHA"}}})
-(babashka.classpath/add-classpath "resources")
+<h2 id="cli">10. CLI and the ./green launcher</h2>
+<pre><code>./green &lt;event&gt; [-f|--file green.yml] [--start step] [--end step] [--dry-run]</code></pre>
+<p><code>(cli/run-cli workflow args config)</code> parses arguments (unknown options are rejected), reads the desired-state file, stamps <code>:green/state-file</code>, overlays <code>COLORS_PAR_*</code>, stamps <code>:green/event</code> and <code>:green/dry-run</code>, applies <code>--start</code>/<code>--end</code> as a graph slice, and returns the final opts. Usage and file errors return exit 2. <code>config</code> accepts <code>:default-file</code> (default <code>green.yml</code>), <code>:search-parents</code> (find the nearest file upwards with <code>cli/find-up</code>) and <code>:allowed-events</code>. <code>(cli/exec ...)</code> does the same, prints <code>:green/err</code>/<code>:green/trace</code> to stderr and exits with <code>:green/exit</code>.</p>
+<p>A package's <code>./green</code> is a babashka script: it adds green as a git dependency pinned by <code>:git/sha</code> (or a working tree via <code>GREEN_LIB_ROOT</code>), defines its workflow, and calls <code>cli/exec</code>. green is not on Clojars.</p>
+<pre><code>((requiring-resolve 'babashka.deps/add-deps)
+ {:deps {'io.github.getcolors/green
+         {:git/url "https://github.com/getcolors/green.git"
+          :git/sha "&lt;commit&gt;"}}})
 (require '[green.cli :as cli] '[green.workflow :as wf])
+;; ... steps, wire-fn, workflow ...
+(cli/exec workflow *command-line-args*
+          {:default-file "green.yml" :search-parents true
+           :allowed-events [:create :delete]})</code></pre>
+<p><code>(cli/stage-dir opts tool [{:default-workdir :default-profile :state-file-key}])</code> resolves <code>&lt;state-file dir&gt;/&lt;:workdir or .colors&gt;/&lt;:profile&gt;/&lt;tool&gt;</code> for packages that render files; absolute workdirs are kept.</p>
 
-(defn wire-fn [step _run-opts]
-  (case step
-    :app/start [identity]))
-
-(def workflow (wf/workflow {:start :app/start :wire-fn wire-fn}))
-(cli/exec workflow)</code></pre>
-
-<h2 id="examples">11. Examples</h2>
-<p>Every example is a self-contained babashka CLI that depends on this checkout with <code>:local/root "../.."</code>. Four examples are mock-only OpenTofu demos; <code>floci-zookeeper</code> creates real local containers through floci.</p>
-<table>
-<tr><th>Path</th><th>What it teaches</th></tr>
-<tr><td><code>examples/zookeeper</code></td><td>Dynamic fan-out from desired state, a join at <code>:zk/zoo-cfg</code>, Selmer scaffolding plus OpenTofu, backend-as-advice, and dry-run.</td></tr>
-<tr><td><code>examples/multi-zookeeper</code></td><td>Workflow composition: one cluster workflow embedded with <code>wf/step</code>, fanned out once per cluster, with inherited parent advice.</td></tr>
-<tr><td><code>examples/once</code></td><td>ONCE-style single VPS. Demonstrates provider-swap advice, <code>compute ∥ smtp → dns → smtp-post → (ansible-local ∥ ansible-remote)</code>, per-step tofu state, and scaffold-only Ansible files. See <code>examples/once/SPEC.md</code>.</td></tr>
-<tr><td><code>examples/multi-once</code></td><td>Many ONCE boxes from one <code>once-wf</code>. The parent replaces inherited <code>::provider</code> and <code>::backend</code> advice; S3 state keys are isolated by deployment and step. Dry-run is declared last so it skips the re-added <code>:before</code> advice too.</td></tr>
-<tr><td><code>examples/floci-zookeeper</code></td><td>Real local ZooKeeper: OpenTofu's AWS provider targets floci, Ansible provisions over SSH, an event-specific static graph routes delete through Ansible before destroys, validation gates use <code>:before-while</code>, <code>:filter-args</code> normalizes observed nodes, retry advice polls quorum health, and progress output is enabled.</td></tr>
-</table>
-<pre><code>cd examples/zookeeper
+<h2 id="example">11. The example</h2>
+<p><a href="https://github.com/getcolors/green/tree/main/examples/hello"><code>examples/hello</code></a> is a complete package in three files: the <code>green</code> launcher (holding the workflow), <code>green.yml</code>, and <code>test/hello/launcher_test.clj</code>. It is offline and harmless.</p>
+<pre><code>:hello/start (lifecycle preflight)
+   ├─ :hello/uname   uname -s            (read-only, runs under --dry-run)
+   └─ :hello/write   write greeting file
+        ↘ ↙
+   :hello/check      join: read the file back and verify</code></pre>
+<pre><code>cd examples/hello
 ./green create --dry-run
-./green create
-./green delete
+./green create                         # hello, world (Linux)
+COLORS_PAR_NAME=agent ./green create   # hello, agent (Linux)
+./green delete</code></pre>
 
-cd ../multi-zookeeper
-./green create --dry-run
-./green create
-./green delete
+<h2 id="testing">12. Testing</h2>
+<pre><code>bb test                # Babashka
+clojure -X:test        # JVM (cognitect test-runner)
+clojure -T:build jar   # target/green-0.1.0.jar
+bb docco               # regenerate docco.html</code></pre>
+<p>Steps are plain functions and <code>cli/run-cli</code> never exits, so packages test their workflows in-process with <code>wf/run</code> or <code>run-cli</code>, using <code>:override</code> advice to stub side effects. The example's test drives the real launcher as a subprocess (needs <code>bb</code> on <code>PATH</code>). CI runs both suites and builds the jar.</p>
 
-cd ../once
-./green create --dry-run
-./green create
-./green delete
-
-cd ../multi-once
-./green create --dry-run   # offline path; real create needs an S3 bucket
-./green create
-./green delete
-
-cd ../floci-zookeeper
-./green create --dry-run   # validates and prints; touches nothing
-./green create             # real cluster on floci + Ansible
-./green delete             # delete.yml first, then tofu destroys</code></pre>
-
-<h2 id="testing">12. Testing strategy</h2>
-<p>The suite runs under babashka (<code>bb test</code>) and the JVM (<code>clojure -X:test</code>). Under babashka, <code>bb.edn</code> explicitly requires and runs each test namespace; under the JVM, <code>deps.edn</code>'s <code>:test</code> alias uses <code>cognitect.test-runner</code> discovery.</p>
-<ul>
-  <li><code>test/green/workflow_test.clj</code> covers linear runs, errors, slices, event-specific static graphs, dynamic routing, fork/join, failure collapse, concurrency, and composition.</li>
-  <li><code>test/green/advice_test.clj</code> covers every advice combinator, ordering/depth, all-step advice, removal/replacement, and inheritance through <code>wf/step</code>.</li>
-  <li><code>test/green/scaffold_test.clj</code> covers template resolution, create/delete symmetry, and idempotent rendering.</li>
-  <li><code>test/green/tofu_test.clj</code> covers backend advice rendering without invoking <code>tofu</code>.</li>
-  <li><code>test/green/ansible_test.clj</code> covers playbook selection, PLAY RECAP parsing, inventory rendering, and inventory advice without invoking <code>ansible-playbook</code>.</li>
-  <li><code>test/green/zookeeper_test.clj</code> is the e2e suite: if <code>tofu</code> is on <code>PATH</code>, it runs real render/apply/output/destroy cycles over HCL containing only <code>locals</code> and <code>output</code> blocks.</li>
-</ul>
-<p>The real floci example is intentionally not in the automated suite because it requires Docker/floci, Ansible, provider downloads, and minutes of runtime; verify it manually with its <code>./green create</code>/<code>delete</code>.</p>
-
-<h2 id="layout">13. Project layout &amp; API index</h2>
-<pre><code>green/
-├── deps.edn            JVM deps: selmer, babashka/cli, cheshire (+ :test, :build)
-├── bb.edn              paths + `bb test` task
-├── build.clj           tools.build: jar / install / deploy
-├── index.html          this specification
-├── docco.html          generated source tour
-├── src/green/
-│   ├── advice.clj      nadvice combinators and pure registry ops
-│   ├── workflow.clj    workflow, run, step, advice add/remove/all, advice-plan
-│   ├── scaffold.clj    flat Selmer file-spec DSL
-│   ├── tofu.clj        tofu-step, outputs, backend advices (local/s3/gcs)
-│   ├── ansible.clj     ansible-step, recap parsing, inventory advice
-│   ├── dry_run.clj     dry-run advice + advise
-│   ├── progress.clj    progress advice + advise
-│   └── cli.clj         run-cli, exec, arg parsing
-├── test/green/         advice, workflow, scaffold, cli, dry-run, progress, tofu, ansible, zookeeper
-└── examples/           zookeeper, multi-zookeeper, once, multi-once, floci-zookeeper</code></pre>
-
-<h3>Distribution</h3>
-<p>Library coordinate: <code>io.github.getcolors/green</code>. It has not been published to Clojars yet.</p>
-<ul>
-  <li><strong>Current rule:</strong> external consumers and launcher snippets must use a git dep with an explicit commit SHA: <code>io.github.getcolors/green {:git/sha "REPLACE_WITH_COMMIT_SHA"}</code>.</li>
-  <li><strong>Development:</strong> in-repo examples use <code>{:local/root "../.."}</code>.</li>
-  <li><strong>Future Clojars publishing:</strong> <code>clojure -T:build jar</code>, <code>install</code>, and <code>deploy</code> are available; deploy reads <code>CLOJARS_USERNAME</code>/<code>CLOJARS_PASSWORD</code>.</li>
-</ul>
-
-<table>
-<tr><th>Function</th><th>Signature / purpose</th></tr>
-<tr><td><code>green.workflow/workflow</code></td><td><code>{:start :end :wire-fn :next-fn} → workflow</code>; <code>wire-fn</code> is <code>(fn [step run-opts] ...)</code></td></tr>
-<tr><td><code>green.workflow/run</code></td><td><code>workflow, opts → final opts</code></td></tr>
-<tr><td><code>green.workflow/step</code></td><td><code>workflow [, {:in-fn :out-fn}] → step fn</code></td></tr>
-<tr><td><code>green.workflow/advice-add</code></td><td><code>workflow, step, how, id, f [, props] → workflow</code></td></tr>
-<tr><td><code>green.workflow/advice-remove</code></td><td><code>workflow, step, id → workflow</code></td></tr>
-<tr><td><code>green.workflow/advice-add-all</code></td><td><code>workflow, how, id, f [, props] → workflow</code></td></tr>
-<tr><td><code>green.workflow/advice-remove-all</code></td><td><code>workflow, id → workflow</code></td></tr>
-<tr><td><code>green.workflow/advice-plan</code></td><td><code>workflow-or-chain, step → printable advice stack</code></td></tr>
-<tr><td><code>green.advice/hows</code>, <code>ordered</code>, <code>compose</code></td><td>Low-level advice combinator set, ordering, and wrapper composition.</td></tr>
-<tr><td><code>green.advice/add</code>, <code>remove-id</code>, <code>add-global</code>, <code>remove-global-id</code></td><td>Low-level pure registry operations used by <code>green.workflow</code>.</td></tr>
-<tr><td><code>green.advice/merge-entries</code>, <code>merge-registry</code></td><td>Low-level inheritance helpers for composing parent/child advice registries.</td></tr>
-<tr><td><code>green.scaffold/template-path</code></td><td><code>keyword → classpath resource path</code></td></tr>
-<tr><td><code>green.scaffold/render-template</code></td><td><code>keyword, data → rendered string</code></td></tr>
-<tr><td><code>green.scaffold/scaffold</code></td><td><code>opts, specs → opts</code></td></tr>
-<tr><td><code>green.tofu/outputs</code></td><td><code>dir [, env] → outputs map</code>; on a non-zero exit — a launch failure (no such directory, no <code>tofu</code> binary) included, reported as exit 127 — throws <code>ex-info</code> <code>"tofu output failed: …"</code> with <code>{:dir dir}</code>, never a raw exception.</td></tr>
-<tr><td><code>green.tofu/tofu-step</code></td><td><code>opts, {:dir :output-key} → opts</code></td></tr>
-<tr><td><code>green.tofu/backend-advice</code></td><td><code>(opts → dir), type, config → before-advice</code></td></tr>
-<tr><td><code>green.tofu/local-backend-advice</code></td><td><code>(opts → dir) [, config] → before-advice</code></td></tr>
-<tr><td><code>green.tofu/s3-backend-advice</code></td><td><code>(opts → dir), config → before-advice</code></td></tr>
-<tr><td><code>green.tofu/gcs-backend-advice</code></td><td><code>(opts → dir), config → before-advice</code></td></tr>
-<tr><td><code>green.ansible/default-playbooks</code></td><td>Default event-to-playbook map: <code>{:create "create.yml" :delete "delete.yml"}</code>.</td></tr>
-<tr><td><code>green.ansible/playbook</code></td><td><code>opts [, playbooks] → playbook file</code></td></tr>
-<tr><td><code>green.ansible/parse-recap</code></td><td><code>ansible output → per-host counters</code></td></tr>
-<tr><td><code>green.ansible/ansible-step</code></td><td><code>opts, options → opts</code></td></tr>
-<tr><td><code>green.ansible/inventory-ini</code></td><td><code>groups → INI string</code></td></tr>
-<tr><td><code>green.ansible/inventory-advice</code></td><td><code>(opts → file), groups → before-advice</code></td></tr>
-<tr><td><code>green.dry-run/advice</code></td><td><code>step → around-advice</code></td></tr>
-<tr><td><code>green.dry-run/advise</code></td><td><code>workflow, steps → workflow</code></td></tr>
-<tr><td><code>green.progress/progress</code></td><td><code>around-advice</code></td></tr>
-<tr><td><code>green.progress/advise</code></td><td><code>workflow → workflow</code></td></tr>
-<tr><td><code>green.cli/usage</code></td><td>CLI usage string for errors.</td></tr>
-<tr><td><code>green.cli/run-cli</code></td><td><code>workflow [, args] → final opts</code></td></tr>
-<tr><td><code>green.cli/exec</code></td><td><code>workflow [, args] → exits process</code></td></tr>
-</table>
-
-<h2 id="kubernetes">Kubernetes controllers</h2>
-<p><code>green.kubernetes</code> calls package-owned Clojure functions and Green
-workflows from a Kubernetes control loop. Each package registers a separate
-custom resource type. The local implementation supports bounded workers,
-per-profile serialization within one process, periodic observation, retries,
-suspension, status, and protected deletion.</p>
-<p>See the <a href="docs/kubernetes.md">package contract</a> and the
-<a href="examples/kubernetes/README.md">Docker and kind example</a>. The example
-includes installation as a Green workflow. Distributed locking and automatic
-failover are outside this version.</p>
+<h2 id="api">13. API index</h2>
+<div class="table-wrap"><table>
+<tr><th>Namespace</th><th>Public vars</th></tr>
+<tr><td><code>green.workflow</code></td><td><code>workflow</code>, <code>run</code>, <code>step</code>, <code>failed?</code>, <code>advice-add</code>, <code>advice-remove</code>, <code>advice-add-all</code>, <code>advice-remove-all</code>, <code>advice-plan</code></td></tr>
+<tr><td><code>green.advice</code></td><td><code>hows</code>, <code>add</code>, <code>remove-id</code>, <code>add-global</code>, <code>remove-global-id</code>, <code>merge-entries</code>, <code>merge-registry</code>, <code>ordered</code>, <code>compose</code></td></tr>
+<tr><td><code>green.cli</code></td><td><code>run-cli</code>, <code>exec</code>, <code>read-state</code>, <code>read-pars</code>, <code>par-name</code>, <code>find-up</code>, <code>stage-dir</code>, <code>usage</code></td></tr>
+<tr><td><code>green.lifecycle</code></td><td><code>preflight</code>, <code>real-run?</code></td></tr>
+<tr><td><code>green.dry-run</code></td><td><code>advise</code>, <code>advice</code></td></tr>
+<tr><td><code>green.progress</code></td><td><code>advise</code>, <code>progress</code></td></tr>
+</table></div>
+<p>Dependencies: Clojure, <code>org.babashka/cli</code> and <code>org.yamlstar/yamlstar</code> (exactly 0.1.17). The <a href="docco.html">source tour</a> walks every form.</p>
 </main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <a class="foot-home" href="https://www.getcolors.ai/" aria-label="Colors — home">
+      <img src="https://www.getcolors.ai/favicon.svg" width="20" height="20" alt="">
+      <span>Colors</span>
+    </a>
+    <div class="foot-links">
+      <a href="https://www.getcolors.ai/">www.getcolors.ai</a>
+      <a href="https://www.getcolors.ai/blog">Blog</a>
+      <a href="https://github.com/getcolors/green">GitHub</a>
+    </div>
+  </div>
+</footer>
 </body>
 </html>

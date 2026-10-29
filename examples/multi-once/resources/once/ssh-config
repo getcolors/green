@@ -1,7 +1,0 @@
-# managed by green (once example) — SSH access to the ONCE VPS.
-# ansible-local renders this fragment so the operator can `ssh {{name}}`.
-# Wire it into ~/.ssh/config with:  Include /abs/path/work/ansible-local/config
-Host {{name}}
-  HostName {{ip}}
-  User {{sudoer}}
-  IdentityFile {{identity}}

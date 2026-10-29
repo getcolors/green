@@ -1,5 +1,0 @@
----
-- hosts: {{group}}
-  tasks:
-    - debug:
-        msg: "hello from {{name}}"

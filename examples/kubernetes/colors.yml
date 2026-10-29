@@ -1,4 +1,0 @@
-profile: local-service
-replicas: 1
-message: Hello from Green
-compute-prevent-destroy: true

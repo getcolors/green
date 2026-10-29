@@ -12,9 +12,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    env:
-      TF_IN_AUTOMATION: "true"
-      TOFU_IN_AUTOMATION: "true"
 
     steps:
       - name: Check out repository
@@ -32,12 +29,6 @@ jobs:
           cli: latest
           bb: latest
 
-      - name: Set up OpenTofu
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: 1.6.2
-          tofu_wrapper: false
-
       - name: Cache Clojure dependencies
         uses: actions/cache@v4
         with:
@@ -53,7 +44,6 @@ jobs:
           java -version
           clojure -Sdescribe
           bb --version
-          tofu version
 
       - name: Run Babashka tests
         run: bb test

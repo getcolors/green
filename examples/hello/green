@@ -1,0 +1,115 @@
+#!/usr/bin/env bb
+;; hello — the smallest useful green package.
+;;
+;;   ./green create             # uname ∥ write greeting  →  check (join)
+;;   ./green create --dry-run   # uname still runs (read-only); writes are skipped
+;;   ./green delete             # remove the greeting file
+;;   COLORS_PAR_NAME=agent ./green create
+;;
+;; Steps call local CLIs and the file system directly. A real package does the
+;; same with a cloud CLI or API (`gcloud`, `doctl`, `oci`, an HTTP client):
+;; green owns the graph, the advice and the CLI; the steps own the side effects.
+
+(require '[babashka.fs :as fs])
+
+(def script-dir
+  (str (fs/parent (fs/canonicalize (if (= "NO_SOURCE_PATH" *file*)
+                                     (fs/path (fs/cwd) "green")
+                                     *file*)))))
+
+;; Resolve green from this checkout. GREEN_LIB_ROOT points the launcher at
+;; another working tree; a standalone package pins a :git/sha instead.
+((requiring-resolve 'babashka.deps/add-deps)
+ {:deps {'io.github.getcolors/green
+         {:local/root (or (System/getenv "GREEN_LIB_ROOT")
+                          (str (fs/path script-dir "../..")))}}})
+
+(require '[clojure.java.shell :as shell]
+         '[clojure.string :as str]
+         '[green.cli :as cli]
+         '[green.dry-run :as dry-run]
+         '[green.lifecycle :as lifecycle]
+         '[green.progress :as progress]
+         '[green.workflow :as wf])
+
+(defn greeting-path
+  "The greeting file, resolved against the desired-state file's directory."
+  [opts]
+  (let [p (fs/path (:greeting-file opts))]
+    (str (if (fs/absolute? p)
+           p
+           (fs/path (fs/parent (:green/state-file opts)) p)))))
+
+(defn greeting [opts]
+  (str "hello, " (:name opts) "\n"))
+
+(defn- non-blank [k]
+  (fn [opts _env _context]
+    (when (str/blank? (str (get opts k)))
+      [(str (name k) " must not be blank (set it in green.yml or "
+            (cli/par-name k) ")")])))
+
+(defn start-step
+  "Preflight: defaults, the COLORS_PAR_* overlay (idempotent) and validators.
+  A failing validator returns exit 2 and the workflow stops here."
+  [opts]
+  (lifecycle/preflight opts {:defaults {:greeting-file "work/hello.txt"}
+                             :overlay cli/read-pars
+                             :validators [(non-blank :name)
+                                          (non-blank :greeting-file)]}))
+
+(defn uname-step
+  "Read-only local CLI call: record the kernel name."
+  [opts]
+  (let [{:keys [exit out err]} (shell/sh "uname" "-s")]
+    (if (zero? exit)
+      (assoc opts :hello/kernel (str/trim out))
+      (assoc opts :green/exit exit :green/err (str "uname failed: " err)))))
+
+(defn write-step
+  "Side effect: write the greeting file."
+  [opts]
+  (let [path (greeting-path opts)]
+    (fs/create-dirs (fs/parent path))
+    (spit path (greeting opts))
+    (assoc opts :hello/written path)))
+
+(defn check-step
+  "Join: merge both branches, read the file back and verify it."
+  [opts]
+  (let [opts (apply merge opts (:green/branches opts))
+        path (greeting-path opts)
+        actual (when (fs/exists? path) (slurp path))]
+    (if (= (greeting opts) actual)
+      (do (println (str (str/trim actual) " (" (:hello/kernel opts) ")"))
+          (dissoc opts :green/branches))
+      (assoc opts :green/exit 1
+                  :green/err (str "unexpected content in " path ": " (pr-str actual))))))
+
+(defn remove-step
+  "Side effect: delete the greeting file. Idempotent."
+  [opts]
+  (fs/delete-if-exists (greeting-path opts))
+  opts)
+
+(defn wire-fn
+  "Static graph per event. Two successors fork in parallel; both reach
+  :hello/check, so it runs once as their join."
+  [step run-opts]
+  (case [(:green/event run-opts) step]
+    [:create :hello/start] [start-step :hello/uname :hello/write]
+    [:create :hello/uname] [uname-step :hello/check]
+    [:create :hello/write] [write-step :hello/check]
+    [:create :hello/check] [check-step]
+    [:delete :hello/start] [start-step :hello/remove]
+    [:delete :hello/remove] [remove-step]))
+
+(def workflow
+  (-> (wf/workflow {:start :hello/start :wire-fn wire-fn})
+      progress/advise
+      ;; Declared last, so its ::skip advice is outermost on these steps.
+      (dry-run/advise [:hello/write :hello/check :hello/remove])))
+
+(cli/exec workflow *command-line-args*
+          {:default-file "green.yml" :search-parents true
+           :allowed-events [:create :delete]})

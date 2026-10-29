@@ -58,14 +58,14 @@
             :wire-fn (fn [step run-opts]
                        (case [(:green/event run-opts) step]
                          [:create :t/start] [(mark :start) :t/node]
-                         [:create :t/node] [(mark :node) :t/ansible]
-                         [:create :t/ansible] [(mark :ansible)]
-                         [:delete :t/start] [(mark :start) :t/ansible]
-                         [:delete :t/ansible] [(mark :ansible) :t/node]
+                         [:create :t/node] [(mark :node) :t/config]
+                         [:create :t/config] [(mark :config)]
+                         [:delete :t/start] [(mark :start) :t/config]
+                         [:delete :t/config] [(mark :config) :t/node]
                          [:delete :t/node] [(mark :node)]))})]
-    (is (= [:start :node :ansible]
+    (is (= [:start :node :config]
            (:seen (wf/run w {:green/event :create}))))
-    (is (= [:start :ansible :node]
+    (is (= [:start :config :node]
            (:seen (wf/run w {:green/event :delete}))))))
 
 (deftest wire-fn-uses-stable-run-opts-not-branch-opts

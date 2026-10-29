@@ -1,4 +1,0 @@
-- hosts: <{group}>
-  tasks:
-    - debug:
-        msg: "{{ ansible_var }}"
