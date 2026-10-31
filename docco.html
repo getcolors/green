@@ -40,12 +40,12 @@ main { min-width:0; }
 <h1>Green source tour</h1>
 <p>A Docco-style, single-page source tour for Green. It is regenerated from the current Clojure sources, tests, and the executable example launcher; commentary is kept at namespace, function, var, test, or script-form granularity.</p>
 <p><a href="index.html">Back to the specification</a></p>
-<div class="badges"><span class="badge">static HTML</span><span class="badge">src + test + example</span><span class="badge">13 files</span><span class="badge">206 forms</span><span class="badge">generated 2026-10-29</span></div>
+<div class="badges"><span class="badge">static HTML</span><span class="badge">src + test + example</span><span class="badge">8 files</span><span class="badge">172 forms</span><span class="badge">generated 2026-10-31</span></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="Table of contents">
 <h2>Files</h2><ol>
-<li class="group">src</li><li><a href="#src-green-advice-clj">src/green/advice.clj</a></li><li><a href="#src-green-cli-clj">src/green/cli.clj</a></li><li><a href="#src-green-dry-run-clj">src/green/dry_run.clj</a></li><li><a href="#src-green-lifecycle-clj">src/green/lifecycle.clj</a></li><li><a href="#src-green-progress-clj">src/green/progress.clj</a></li><li><a href="#src-green-workflow-clj">src/green/workflow.clj</a></li><li class="group">test</li><li><a href="#test-green-advice-test-clj">test/green/advice_test.clj</a></li><li><a href="#test-green-cli-test-clj">test/green/cli_test.clj</a></li><li><a href="#test-green-dry-run-test-clj">test/green/dry_run_test.clj</a></li><li><a href="#test-green-progress-test-clj">test/green/progress_test.clj</a></li><li><a href="#test-green-workflow-test-clj">test/green/workflow_test.clj</a></li><li class="group">examples</li><li><a href="#examples-hello-green">examples/hello/green</a></li><li><a href="#examples-hello-test-hello-launcher-test-clj">examples/hello/test/hello/launcher_test.clj</a></li>
+<li class="group">src</li><li><a href="#src-green-advice-clj">src/green/advice.clj</a></li><li><a href="#src-green-cli-clj">src/green/cli.clj</a></li><li><a href="#src-green-workflow-clj">src/green/workflow.clj</a></li><li class="group">test</li><li><a href="#test-green-advice-test-clj">test/green/advice_test.clj</a></li><li><a href="#test-green-cli-test-clj">test/green/cli_test.clj</a></li><li><a href="#test-green-workflow-test-clj">test/green/workflow_test.clj</a></li><li class="group">examples</li><li><a href="#examples-hello-green">examples/hello/green</a></li><li><a href="#examples-hello-test-hello-launcher-test-clj">examples/hello/test/hello/launcher_test.clj</a></li>
 </ol><p style="margin-top:1rem"><a href="#top">Back to top</a></p></nav>
 <main>
 <section class="file" id="src-green-advice-clj">
@@ -324,39 +324,30 @@ main { min-width:0; }
 <section class="file" id="src-green-cli-clj">
 <header class="file-header">
 <h2><code>src/green/cli.clj</code></h2>
-<p>The thin CLI layer: parse args, read desired state as YAML or EDN according to the file&#39;s extension, overlay COLORS_PAR_* environment variables, stamp the lifecycle event and dry-run bit, optionally slice the workflow, then delegate to green.workflow.</p>
-<p>15 top-level forms; named definitions/tests: <a href="#src-green-cli-clj-par-prefix-23"><code>par-prefix</code></a>, <a href="#src-green-cli-clj-par-name-28"><code>par-name</code></a>, <a href="#src-green-cli-clj-par-key-34"><code>par-key</code></a>, <a href="#src-green-cli-clj-coerce-42"><code>coerce</code></a>, <a href="#src-green-cli-clj-read-pars-55"><code>read-pars</code></a>, <a href="#src-green-cli-clj-keywordize-74"><code>keywordize</code></a>, <a href="#src-green-cli-clj-core-scalar-node-87"><code>core-scalar-node</code></a>, <a href="#src-green-cli-clj-read-state-104"><code>read-state</code></a>, <a href="#src-green-cli-clj-find-up-119"><code>find-up</code></a>, <a href="#src-green-cli-clj-stage-dir-131"><code>stage-dir</code></a>, <a href="#src-green-cli-clj-base-cli-spec-144"><code>base-cli-spec</code></a>, <a href="#src-green-cli-clj-usage-149"><code>usage</code></a>, <a href="#src-green-cli-clj-run-cli-152"><code>run-cli</code></a>, <a href="#src-green-cli-clj-exec-190"><code>exec</code></a></p>
+<p>Configuration helpers: read YAML or EDN by extension, overlay COLORS_PAR_* environment variables and map parameter names. The namespace stays stable while applications own CLI execution.</p>
+<p>9 top-level forms; named definitions/tests: <a href="#src-green-cli-clj-par-prefix-14"><code>par-prefix</code></a>, <a href="#src-green-cli-clj-par-name-19"><code>par-name</code></a>, <a href="#src-green-cli-clj-par-key-25"><code>par-key</code></a>, <a href="#src-green-cli-clj-coerce-33"><code>coerce</code></a>, <a href="#src-green-cli-clj-read-pars-46"><code>read-pars</code></a>, <a href="#src-green-cli-clj-keywordize-65"><code>keywordize</code></a>, <a href="#src-green-cli-clj-core-scalar-node-78"><code>core-scalar-node</code></a>, <a href="#src-green-cli-clj-read-state-95"><code>read-state</code></a></p>
 </header>
 <article class="docco-row" id="src-green-cli-clj-green-cli-1">
 <div class="docs">
 <h3><code>green.cli</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>CLI plumbing: <code>./green &lt;event&gt; [-f|--file green.yml] [--start step]<br>  [--end step]</code>. The first positional argument is the lifecycle event,<br>  stamped into opts as :green/event. --start/--end run a slice of the graph.</p><p>  Desired state is YAML or EDN on disk, selected by the file&#39;s extension, so<br>  it cannot hold secrets. <code>COLORS_PAR_*</code> environment variables fill that gap:<br>  each one overlays the matching flat key after the file is read, and <code>run-cli</code><br>  applies them for you. The prefix is shared by every colour, so the same<br>  variable reaches green, red and blue alike.</p>
+<p>Configuration helpers kept at the existing green.cli import path.<br>  Parse YAML or EDN desired state and explicitly overlay COLORS_PAR_* values.<br>  Applications own argument parsing, validation, reporting and process exits.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">(ns green.cli
-  &quot;CLI plumbing: `./green &lt;event&gt; [-f|--file green.yml] [--start step]
-  [--end step]`. The first positional argument is the lifecycle event,
-  stamped into opts as :green/event. --start/--end run a slice of the graph.
-
-  Desired state is YAML or EDN on disk, selected by the file&#39;s extension, so
-  it cannot hold secrets. `COLORS_PAR_*` environment variables fill that gap:
-  each one overlays the matching flat key after the file is read, and `run-cli`
-  applies them for you. The prefix is shared by every colour, so the same
-  variable reaches green, red and blue alike.&quot;
+  &quot;Configuration helpers kept at the existing green.cli import path.
+  Parse YAML or EDN desired state and explicitly overlay COLORS_PAR_* values.
+  Applications own argument parsing, validation, reporting and process exits.&quot;
   (:require
-   [babashka.cli :as cli]
    [clojure.edn :as edn]
-   [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.walk :as walk]
-   [green.workflow :as wf]
    [yamlstar.parser :as yaml-parser]
    [yamlstar.composer :as yaml-composer]
    [yamlstar.resolver :as yaml-resolver]
    [yamlstar.constructor :as yaml-constructor]))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-par-prefix-23">
+<article class="docco-row" id="src-green-cli-clj-par-prefix-14">
 <div class="docs">
-<h3><code>par-prefix</code> <span style="color:var(--muted);font-weight:400">(var, line 23)</span></h3>
+<h3><code>par-prefix</code> <span style="color:var(--muted);font-weight:400">(var, line 14)</span></h3>
 <p>The parameter namespace every colour shares, so one variable serves green,<br>  red and blue without naming any of them.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -366,9 +357,9 @@ main { min-width:0; }
   red and blue without naming any of them.&quot;
   &quot;COLORS_PAR_&quot;)</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-par-name-28">
+<article class="docco-row" id="src-green-cli-clj-par-name-19">
 <div class="docs">
-<h3><code>par-name</code> <span style="color:var(--muted);font-weight:400">(function, line 28)</span></h3>
+<h3><code>par-name</code> <span style="color:var(--muted);font-weight:400">(function, line 19)</span></h3>
 <p>The <code>COLORS_PAR_*</code> environment variable that supplies flat key <code>k</code>:<br>  uppercased, hyphens as underscores. :do-token -&gt; COLORS_PAR_DO_TOKEN.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -379,9 +370,9 @@ main { min-width:0; }
   [k]
   (str par-prefix (-&gt; (name k) str/upper-case (str/replace &quot;-&quot; &quot;_&quot;))))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-par-key-34">
+<article class="docco-row" id="src-green-cli-clj-par-key-25">
 <div class="docs">
-<h3><code>par-key</code> <span style="color:var(--muted);font-weight:400">(private function, line 34)</span></h3>
+<h3><code>par-key</code> <span style="color:var(--muted);font-weight:400">(private function, line 25)</span></h3>
 <p>Private helper used by this namespace: par key.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -394,9 +385,9 @@ main { min-width:0; }
       (str/replace &quot;_&quot; &quot;-&quot;)
       keyword))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-coerce-42">
+<article class="docco-row" id="src-green-cli-clj-coerce-33">
 <div class="docs">
-<h3><code>coerce</code> <span style="color:var(--muted);font-weight:400">(private function, line 42)</span></h3>
+<h3><code>coerce</code> <span style="color:var(--muted);font-weight:400">(private function, line 33)</span></h3>
 <p>Environment variables are strings; match the type of the value already in<br>  opts so a boolean key stays a boolean. Without this, COLORS_PAR_X=false would<br>  overlay the truthy string &quot;false&quot;.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -414,9 +405,9 @@ main { min-width:0; }
     (integer? old) (or (parse-long value) value)
     :else value))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-read-pars-55">
+<article class="docco-row" id="src-green-cli-clj-read-pars-46">
 <div class="docs">
-<h3><code>read-pars</code> <span style="color:var(--muted);font-weight:400">(function, line 55)</span></h3>
+<h3><code>read-pars</code> <span style="color:var(--muted);font-weight:400">(function, line 46)</span></h3>
 <p>Overlay <code>COLORS_PAR_*</code> environment variables onto flat keys in <code>opts</code>.</p><p>  <code>COLORS_PAR_DO_TOKEN=xxx</code> becomes <code>{:do-token &quot;xxx&quot;}</code>. This is how secrets<br>  reach a workflow without being written to the desired-state file. Overrides<br>  are coerced to the type of the value they replace, and applying them twice<br>  changes nothing.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -440,9 +431,9 @@ main { min-width:0; }
               opts
               env)))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-keywordize-74">
+<article class="docco-row" id="src-green-cli-clj-keywordize-65">
 <div class="docs">
-<h3><code>keywordize</code> <span style="color:var(--muted);font-weight:400">(private function, line 74)</span></h3>
+<h3><code>keywordize</code> <span style="color:var(--muted);font-weight:400">(private function, line 65)</span></h3>
 <p>YAML gives string keys; desired state is addressed by keyword throughout,<br>  the way the EDN reader already delivered it. Applied to every map in the<br>  tree, so nested collections read the same as flat ones.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -460,9 +451,9 @@ main { min-width:0; }
     (sequential? x) (mapv keywordize x)
     :else x))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-core-scalar-node-87">
+<article class="docco-row" id="src-green-cli-clj-core-scalar-node-78">
 <div class="docs">
-<h3><code>core-scalar-node</code> <span style="color:var(--muted);font-weight:400">(private function, line 87)</span></h3>
+<h3><code>core-scalar-node</code> <span style="color:var(--muted);font-weight:400">(private function, line 78)</span></h3>
 <p>Fill yamlstar 0.1.17 scalar gaps before resolution. Quoted strings and<br>  explicit tags retain the parser&#39;s original nodes.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -484,9 +475,9 @@ main { min-width:0; }
         :else node))
     node))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-read-state-104">
+<article class="docco-row" id="src-green-cli-clj-read-state-95">
 <div class="docs">
-<h3><code>read-state</code> <span style="color:var(--muted);font-weight:400">(function, line 104)</span></h3>
+<h3><code>read-state</code> <span style="color:var(--muted);font-weight:400">(function, line 95)</span></h3>
 <p>Parse desired-state <code>text</code> written in <code>file</code>&#39;s language: YAML for .yml and<br>  .yaml, EDN otherwise. YAML is read by yamlstar, whose 1.2 core schema leaves<br>  <code>no</code>, <code>yes</code> and <code>on</code> as the strings they look like.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -506,307 +497,6 @@ main { min-width:0; }
          keywordize)
     (edn/read-string text)))</code></pre></div>
 </article>
-<article class="docco-row" id="src-green-cli-clj-find-up-119">
-<div class="docs">
-<h3><code>find-up</code> <span style="color:var(--muted);font-weight:400">(function, line 119)</span></h3>
-<p>Return the nearest <code>name</code> at or above <code>start</code>, or nil.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn find-up
-  &quot;Return the nearest `name` at or above `start`, or nil.&quot;
-  ([name] (find-up name &quot;.&quot;))
-  ([name start]
-   (loop [dir (.getAbsoluteFile (io/file start))]
-     (let [candidate (io/file dir name)
-           parent (.getParentFile dir)]
-       (cond
-         (.exists candidate) (.getAbsolutePath candidate)
-         (nil? parent) nil
-         :else (recur parent))))))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-cli-clj-stage-dir-131">
-<div class="docs">
-<h3><code>stage-dir</code> <span style="color:var(--muted);font-weight:400">(function, line 131)</span></h3>
-<p>Resolve a package stage below workdir/profile next to the desired-state file.<br>  Absolute workdirs are preserved.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn stage-dir
-  &quot;Resolve a package stage below workdir/profile next to the desired-state file.
-  Absolute workdirs are preserved.&quot;
-  ([opts tool] (stage-dir opts tool {}))
-  ([opts tool {:keys [default-workdir default-profile state-file-key]
-               :or {default-workdir &quot;.colors&quot; default-profile &quot;default&quot;
-                    state-file-key :green/state-file}}]
-   (let [workdir (io/file (or (:workdir opts) default-workdir))
-         state-dir (when-not (.isAbsolute workdir)
-                     (some-&gt; (get opts state-file-key) io/file .getAbsoluteFile .getParentFile))
-         root (if state-dir (io/file state-dir workdir) workdir)]
-     (str (io/file root (or (:profile opts) default-profile) (str tool))))))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-cli-clj-base-cli-spec-144">
-<div class="docs">
-<h3><code>base-cli-spec</code> <span style="color:var(--muted);font-weight:400">(var, line 144)</span></h3>
-<p>babashka.cli option schema. It keeps coercion and help text close to the parser and lets run-cli focus on workflow setup.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(def ^:private base-cli-spec
-  {:start {:coerce :keyword :desc &quot;Override the workflow start step&quot;}
-   :end {:coerce :keyword :desc &quot;Override the workflow end step (slice boundary)&quot;}
-   :dry-run {:coerce :boolean :desc &quot;Stamp :green/dry-run — steps advised with green.dry-run are skipped&quot;}})</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-cli-clj-usage-149">
-<div class="docs">
-<h3><code>usage</code> <span style="color:var(--muted);font-weight:400">(var, line 149)</span></h3>
-<p>Human-readable usage line returned as :green/err when the caller omits the lifecycle event.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(def usage
-  &quot;Usage: green &lt;event&gt; [-f|--file green.yml] [--start step] [--end step] [--dry-run]&quot;)</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-cli-clj-run-cli-152">
-<div class="docs">
-<h3><code>run-cli</code> <span style="color:var(--muted);font-weight:400">(function, line 152)</span></h3>
-<p>Parse <code>args</code>, load the desired state, overlay <code>COLORS_PAR_*</code>, stamp<br>  :green/event and :green/state-file, run <code>workflow</code>. Returns the final opts<br>  map (:green/exit 2 on usage/state-file errors).</p><p>  :green/state-file is the absolute path the state was read from, so a project<br>  can resolve its own relative paths against the file rather than against<br>  whatever directory the command happened to run in.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn run-cli
-  &quot;Parse `args`, load the desired state, overlay `COLORS_PAR_*`, stamp
-  :green/event and :green/state-file, run `workflow`. Returns the final opts
-  map (:green/exit 2 on usage/state-file errors).
-
-  :green/state-file is the absolute path the state was read from, so a project
-  can resolve its own relative paths against the file rather than against
-  whatever directory the command happened to run in.&quot;
-  ([workflow] (run-cli workflow *command-line-args* {}))
-  ([workflow args] (run-cli workflow args {}))
-  ([workflow args {:keys [default-file search-parents allowed-events]
-                   :or {default-file &quot;green.yml&quot; search-parents false}}]
-   (try
-     (let [resolved-default (or (and search-parents (find-up default-file)) default-file)
-           spec (assoc base-cli-spec :file {:alias :f :default resolved-default
-                                            :desc &quot;Desired state file (YAML, or EDN by extension)&quot;})
-           {:keys [args opts]} (cli/parse-args (vec args) {:spec spec :restrict true})
-           event (first args)]
-       (cond
-         (nil? event) {:green/exit 2 :green/err usage}
-         (and allowed-events (not (contains? (set allowed-events) (keyword event))))
-         {:green/exit 2 :green/err usage}
-         :else
-         (let [file (io/file (:file opts))]
-           (if-not (.exists file)
-             {:green/exit 2 :green/err (str &quot;desired state file not found: &quot; file)}
-             (let [state (-&gt; (read-state file (slurp file))
-                             (assoc :green/state-file (.getAbsolutePath file))
-                             read-pars)
-                   workflow (cond-&gt; workflow
-                              (:start opts) (assoc :green.workflow/start (:start opts))
-                              (:end opts) (assoc :green.workflow/end (:end opts)))]
-               (wf/run workflow
-                       (cond-&gt; (assoc state :green/event (keyword event))
-                         (:dry-run opts) (assoc :green/dry-run true))))))))
-     (catch Throwable t
-       {:green/exit 2 :green/err (or (ex-message t) (str (class t)))}))))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-cli-clj-exec-190">
-<div class="docs">
-<h3><code>exec</code> <span style="color:var(--muted);font-weight:400">(function, line 190)</span></h3>
-<p>Run and exit the process with :green/exit, printing :green/err and<br>  :green/trace to stderr. For use from the project&#39;s babashka script.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn exec
-  &quot;Run and exit the process with :green/exit, printing :green/err and
-  :green/trace to stderr. For use from the project&#39;s babashka script.&quot;
-  ([workflow] (exec workflow *command-line-args* {}))
-  ([workflow args] (exec workflow args {}))
-  ([workflow args config]
-   (let [{:green/keys [exit err trace]} (run-cli workflow args config)]
-     (when err
-       (binding [*out* *err*]
-         (println err)
-         (when trace (println trace))))
-     (System/exit (or exit 0)))))</code></pre></div>
-</article>
-</section>
-<section class="file" id="src-green-dry-run-clj">
-<header class="file-header">
-<h2><code>src/green/dry_run.clj</code></h2>
-<p>Dry-run is modeled as ordinary advice. Side-effecting steps stay honest and reusable; the CLI merely stamps :green/dry-run into opts.</p>
-<p>4 top-level forms; named definitions/tests: <a href="#src-green-dry-run-clj-logln-8"><code>logln</code></a>, <a href="#src-green-dry-run-clj-advice-13"><code>advice</code></a>, <a href="#src-green-dry-run-clj-advise-24"><code>advise</code></a></p>
-</header>
-<article class="docco-row" id="src-green-dry-run-clj-green-dry-run-1">
-<div class="docs">
-<h3><code>green.dry-run</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>Dry-run support, built on the advice facility rather than hardwired into<br>  steps. Attach <code>advice</code> (an :around) to side-effecting steps — or <code>advise</code><br>  a whole list of them; when :green/dry-run is set in opts (the CLI&#39;s<br>  --dry-run flag stamps it) the step is skipped with a note instead of run.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">(ns green.dry-run
-  &quot;Dry-run support, built on the advice facility rather than hardwired into
-  steps. Attach `advice` (an :around) to side-effecting steps — or `advise`
-  a whole list of them; when :green/dry-run is set in opts (the CLI&#39;s
-  --dry-run flag stamps it) the step is skipped with a note instead of run.&quot;
-  (:require [green.workflow :as wf]))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-dry-run-clj-logln-8">
-<div class="docs">
-<h3><code>logln</code> <span style="color:var(--muted);font-weight:400">(private function, line 8)</span></h3>
-<p>Synchronized println used by advice that may run on parallel branches; it avoids interleaving output from futures.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- logln [&amp; xs]
-  (locking *out*
-    (apply println xs)
-    (flush)))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-dry-run-clj-advice-13">
-<div class="docs">
-<h3><code>advice</code> <span style="color:var(--muted);font-weight:400">(function, line 13)</span></h3>
-<p>Build an :around advice for <code>step</code>: when :green/dry-run is set, print<br>  what would have run and skip the base function; otherwise call through.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn advice
-  &quot;Build an :around advice for `step`: when :green/dry-run is set, print
-  what would have run and skip the base function; otherwise call through.&quot;
-  [step]
-  (fn [f opts]
-    (if (:green/dry-run opts)
-      (do (logln (str &quot;dry-run: would run &quot; step
-                       &quot; (&quot; (name (:green/event opts :create)) &quot;)&quot;))
-          (assoc opts :green/exit 0))
-      (f opts))))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-dry-run-clj-advise-24">
-<div class="docs">
-<h3><code>advise</code> <span style="color:var(--muted);font-weight:400">(function, line 24)</span></h3>
-<p>Attach dry-run advice to every step in <code>steps</code> under id ::skip.<br>  Returns the advised workflow; remove per step with<br>  (wf/advice-remove wf step :green.dry-run/skip).</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn advise
-  &quot;Attach dry-run advice to every step in `steps` under id ::skip.
-  Returns the advised workflow; remove per step with
-  (wf/advice-remove wf step :green.dry-run/skip).&quot;
-  [wf steps]
-  (reduce (fn [w s] (wf/advice-add w s :around ::skip (advice s))) wf steps))</code></pre></div>
-</article>
-</section>
-<section class="file" id="src-green-lifecycle-clj">
-<header class="file-header">
-<h2><code>src/green/lifecycle.clj</code></h2>
-<p>Package preflight as one composable function: defaults, the parameter overlay, ordered validators aggregated into a single exit-2 error, and an optional success callback.</p>
-<p>3 top-level forms; named definitions/tests: <a href="#src-green-lifecycle-clj-real-run-5"><code>real-run?</code></a>, <a href="#src-green-lifecycle-clj-preflight-10"><code>preflight</code></a></p>
-</header>
-<article class="docco-row" id="src-green-lifecycle-clj-green-lifecycle-1">
-<div class="docs">
-<h3><code>green.lifecycle</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>Composable package lifecycle preflight.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">(ns green.lifecycle
-  &quot;Composable package lifecycle preflight.&quot;
-  (:require [clojure.string :as str]))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-lifecycle-clj-real-run-5">
-<div class="docs">
-<h3><code>real-run?</code> <span style="color:var(--muted);font-weight:400">(function, line 5)</span></h3>
-<p>True unless the SDK dry-run flag is set.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn real-run?
-  &quot;True unless the SDK dry-run flag is set.&quot;
-  [opts]
-  (not (:green/dry-run opts)))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-lifecycle-clj-preflight-10">
-<div class="docs">
-<h3><code>preflight</code> <span style="color:var(--muted);font-weight:400">(function, line 10)</span></h3>
-<p>Apply defaults/overlay, aggregate validators in order, and optionally run a<br>  successful callback. Validators receive <code>(opts env context)</code> and return<br>  error strings. Returns exit 2 for validation errors.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn preflight
-  &quot;Apply defaults/overlay, aggregate validators in order, and optionally run a
-  successful callback. Validators receive `(opts env context)` and return
-  error strings. Returns exit 2 for validation errors.&quot;
-  ([opts config] (preflight opts config (System/getenv)))
-  ([opts {:keys [defaults overlay validators after-validate]
-          :or {defaults {} overlay (fn [x _] x) validators []}} env]
-   (let [opts (overlay (merge defaults opts) env)
-         context {:event (:green/event opts) :real? (real-run? opts)}
-         errors (vec (mapcat #(or (% opts env context) []) validators))]
-     (if (seq errors)
-       (assoc opts :green/exit 2 :green/err (str/join &quot;\n&quot; errors))
-       (if after-validate
-         (after-validate opts env context)
-         (assoc opts :green/exit 0))))))</code></pre></div>
-</article>
-</section>
-<section class="file" id="src-green-progress-clj">
-<header class="file-header">
-<h2><code>src/green/progress.clj</code></h2>
-<p>Progress output is also ordinary all-steps advice. It demonstrates that instrumentation can be layered onto any workflow without changing wiring.</p>
-<p>4 top-level forms; named definitions/tests: <a href="#src-green-progress-clj-logln-6"><code>logln</code></a>, <a href="#src-green-progress-clj-progress-11"><code>progress</code></a>, <a href="#src-green-progress-clj-advise-24"><code>advise</code></a></p>
-</header>
-<article class="docco-row" id="src-green-progress-clj-green-progress-1">
-<div class="docs">
-<h3><code>green.progress</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>Progress reporting, built on the advice facility. Attach with <code>advise</code><br>  to print step start/end with elapsed time; reads <code>:green/step</code> from opts.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">(ns green.progress
-  &quot;Progress reporting, built on the advice facility. Attach with `advise`
-  to print step start/end with elapsed time; reads `:green/step` from opts.&quot;
-  (:require [green.workflow :as wf]))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-progress-clj-logln-6">
-<div class="docs">
-<h3><code>logln</code> <span style="color:var(--muted);font-weight:400">(private function, line 6)</span></h3>
-<p>Synchronized println used by all-steps progress advice, which can run concurrently on forked branches.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- logln [&amp; xs]
-  (locking *out*
-    (apply println xs)
-    (flush)))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-progress-clj-progress-11">
-<div class="docs">
-<h3><code>progress</code> <span style="color:var(--muted);font-weight:400">(function, line 11)</span></h3>
-<p>An :around advice that prints step name on entry and elapsed time on exit.<br>  Reads :green/step from opts (stamped by the engine).</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn progress
-  &quot;An :around advice that prints step name on entry and elapsed time on exit.
-  Reads :green/step from opts (stamped by the engine).&quot;
-  [f opts]
-  (let [step (:green/step opts)
-        event (name (:green/event opts :create))]
-    (logln (str &quot;&gt;&gt;&gt; &quot; step &quot; (&quot; event &quot;)&quot;))
-    (let [t0 (System/currentTimeMillis)
-          result (f opts)
-          ms (- (System/currentTimeMillis) t0)]
-      (logln (str &quot;&lt;&lt;&lt; &quot; step &quot; (&quot; ms &quot;ms)&quot;))
-      result)))</code></pre></div>
-</article>
-<article class="docco-row" id="src-green-progress-clj-advise-24">
-<div class="docs">
-<h3><code>advise</code> <span style="color:var(--muted);font-weight:400">(function, line 24)</span></h3>
-<p>Attach progress advice to every step. Returns the advised workflow.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn advise
-  &quot;Attach progress advice to every step. Returns the advised workflow.&quot;
-  [wf]
-  (wf/advice-add-all wf :around ::progress progress))</code></pre></div>
-</article>
 </section>
 <section class="file" id="src-green-workflow-clj">
 <header class="file-header">
@@ -817,14 +507,14 @@ main { min-width:0; }
 <article class="docco-row" id="src-green-workflow-clj-green-workflow-1">
 <div class="docs">
 <h3><code>green.workflow</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>The workflow engine: a graph of steps threaded by an opts map.</p><p>  - wire-fn: (step run-opts) -&gt; [fn &amp; next-steps] — the static<br>    happy-path graph for this run. It may depend on stable run-level inputs<br>    such as :green/event. Multiple successors run in parallel.<br>  - next-fn (optional): (next-fn step default-next opts) -&gt; seq of<br>    [next-step opts] pairs — dynamic routing, error branching, fan-out.<br>  - Steps report outcome via :green/exit (0 ok, &gt;0 error), :green/err,<br>    :green/trace. Thrown exceptions are caught and converted.<br>  - Branches converging on the same step join: the join step runs once<br>    with the fork-point opts plus :green/branches (vector of branch results).<br>  - A branch failing inside a fork lets the in-flight siblings finish their<br>    current step, then the fork collapses: the join is skipped and the worst<br>    exit propagates, with all branch results under :green/branches.<br>  - advice-add attaches advice to one step; advice-add-all attaches advice<br>    to every step. Both stack in strict add order (most recently added,<br>    from either, is outermost), unless a :depth prop overrides placement<br>    (lower = more outward), as in Emacs.<br>  - Advice is inherited across <code>step</code> embeds: a run stamps its effective<br>    advice into opts and a nested run merges it over the child&#39;s own —<br>    step names match flat at any depth, ancestor advice is outermost, and<br>    an ancestor entry replaces a same-id child entry. advice-plan shows<br>    the composed stack for a step.</p>
+<p>The workflow engine: a graph of steps threaded by an opts map.</p><p>  - wire-fn: (step run-opts) -&gt; [fn &amp; next-steps] — the static<br>    happy-path graph for this run. It may depend on stable run-level inputs<br>    such as :app/event. Multiple successors run in parallel.<br>  - next-fn (optional): (next-fn step default-next opts) -&gt; seq of<br>    [next-step opts] pairs — dynamic routing, error branching, fan-out.<br>  - Steps report outcome via :green/exit (0 ok, &gt;0 error), :green/err,<br>    :green/trace. Thrown exceptions are caught and converted.<br>  - Branches converging on the same step join: the join step runs once<br>    with the fork-point opts plus :green/branches (vector of branch results).<br>  - A branch failing inside a fork lets the in-flight siblings finish their<br>    current step, then the fork collapses: the join is skipped and the worst<br>    exit propagates, with all branch results under :green/branches.<br>  - advice-add attaches advice to one step; advice-add-all attaches advice<br>    to every step. Both stack in strict add order (most recently added,<br>    from either, is outermost), unless a :depth prop overrides placement<br>    (lower = more outward), as in Emacs.<br>  - Advice is inherited across <code>step</code> embeds: a run stamps its effective<br>    advice into opts and a nested run merges it over the child&#39;s own —<br>    step names match flat at any depth, ancestor advice is outermost, and<br>    an ancestor entry replaces a same-id child entry. advice-plan shows<br>    the composed stack for a step.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">(ns green.workflow
   &quot;The workflow engine: a graph of steps threaded by an opts map.
 
   - wire-fn: (step run-opts) -&gt; [fn &amp; next-steps] — the static
     happy-path graph for this run. It may depend on stable run-level inputs
-    such as :green/event. Multiple successors run in parallel.
+    such as :app/event. Multiple successors run in parallel.
   - next-fn (optional): (next-fn step default-next opts) -&gt; seq of
     [next-step opts] pairs — dynamic routing, error branching, fan-out.
   - Steps report outcome via :green/exit (0 ok, &gt;0 error), :green/err,
@@ -851,7 +541,7 @@ main { min-width:0; }
 <article class="docco-row" id="src-green-workflow-clj-workflow-30">
 <div class="docs">
 <h3><code>workflow</code> <span style="color:var(--muted);font-weight:400">(function, line 30)</span></h3>
-<p>Assembled workflow value with graph wiring plus progress and dry-run advice layers.</p><p>Construct a workflow. :start is required; :end is an optional slice<br>  boundary (it runs, then the workflow stops); :wire-fn is required and<br>  is called as (wire-fn step run-opts); :next-fn is optional.</p>
+<p>Assembled DAG with an embedded workflow and application reporting/dry-run advice.</p><p>Construct a workflow. :start is required; :end is an optional slice<br>  boundary (it runs, then the workflow stops); :wire-fn is required and<br>  is called as (wire-fn step run-opts); :next-fn is optional.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
@@ -1612,7 +1302,7 @@ main { min-width:0; }
 <article class="docco-row" id="src-green-workflow-clj-step-434">
 <div class="docs">
 <h3><code>step</code> <span style="color:var(--muted);font-weight:400">(function, line 434)</span></h3>
-<p>Turn a workflow into a step function (opts -&gt; opts), so workflows compose<br>  into higher-level workflows: wire the result like any other step, advise<br>  it, fan it out. The sub-workflow&#39;s :green/exit propagates naturally, and<br>  ambient keys like :green/event and :green/dry-run flow in with opts.</p><p>  The enclosing run&#39;s advice is inherited: the nested run merges it over<br>  the sub-workflow&#39;s own (see the ns docstring). The engine re-stamps the<br>  inherited registry after :in-fn runs, so :in-fn may build sub-opts from<br>  scratch without severing inheritance.</p><p>  Options:<br>    :in-fn  (fn [opts] sub-opts)        — shape the opts entering the<br>                                          sub-workflow<br>    :out-fn (fn [opts sub-result] opts) — merge the sub-result back into the<br>                                          parent&#39;s opts (default: the<br>                                          sub-result itself is the step&#39;s<br>                                          result)</p>
+<p>Turn a workflow into a step function (opts -&gt; opts), so workflows compose<br>  into higher-level workflows: wire the result like any other step, advise<br>  it, fan it out. The sub-workflow&#39;s :green/exit propagates naturally, and<br>  application keys like :app/event and :app/dry-run flow in with opts.</p><p>  The enclosing run&#39;s advice is inherited: the nested run merges it over<br>  the sub-workflow&#39;s own (see the ns docstring). The engine re-stamps the<br>  inherited registry after :in-fn runs, so :in-fn may build sub-opts from<br>  scratch without severing inheritance.</p><p>  Options:<br>    :in-fn  (fn [opts] sub-opts)        — shape the opts entering the<br>                                          sub-workflow<br>    :out-fn (fn [opts sub-result] opts) — merge the sub-result back into the<br>                                          parent&#39;s opts (default: the<br>                                          sub-result itself is the step&#39;s<br>                                          result)</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
@@ -1620,7 +1310,7 @@ main { min-width:0; }
   &quot;Turn a workflow into a step function (opts -&gt; opts), so workflows compose
   into higher-level workflows: wire the result like any other step, advise
   it, fan it out. The sub-workflow&#39;s :green/exit propagates naturally, and
-  ambient keys like :green/event and :green/dry-run flow in with opts.
+  application keys like :app/event and :app/dry-run flow in with opts.
 
   The enclosing run&#39;s advice is inherited: the nested run merges it over
   the sub-workflow&#39;s own (see the ns docstring). The engine re-stamps the
@@ -2303,8 +1993,8 @@ main { min-width:0; }
 <section class="file" id="test-green-cli-test-clj">
 <header class="file-header">
 <h2><code>test/green/cli_test.clj</code></h2>
-<p>Covers the CLI contract without exiting the JVM: desired-state loading, COLORS_PAR_* overlay and coercion, event stamping, graph slicing, dry-run stamping, stage directories, lifecycle preflight, and usage errors.</p>
-<p>15 top-level forms; named definitions/tests: <a href="#test-green-cli-test-clj-state-file-11"><code>state-file</code></a>, <a href="#test-green-cli-test-clj-probe-wf-18"><code>probe-wf</code></a>, <a href="#test-green-cli-test-clj-event-and-state-flow-into-the-workflow-26"><code>event-and-state-flow-into-the-workflow</code></a>, <a href="#test-green-cli-test-clj-arbitrary-events-are-allowed-31"><code>arbitrary-events-are-allowed</code></a>, <a href="#test-green-cli-test-clj-slices-via-start-and-end-35"><code>slices-via-start-and-end</code></a>, <a href="#test-green-cli-test-clj-dry-run-flag-stamps-the-key-45"><code>dry-run-flag-stamps-the-key</code></a>, <a href="#test-green-cli-test-clj-usage-errors-exit-2-51"><code>usage-errors-exit-2</code></a>, <a href="#test-green-cli-test-clj-colors-par-variables-overlay-desired-state-61"><code>colors-par-variables-overlay-desired-state</code></a>, <a href="#test-green-cli-test-clj-shared-package-conventions-94"><code>shared-package-conventions</code></a>, <a href="#test-green-cli-test-clj-desired-state-is-read-by-extension-103"><code>desired-state-is-read-by-extension</code></a>, <a href="#test-green-cli-test-clj-run-cli-overlays-pars-onto-the-state-file-122"><code>run-cli-overlays-pars-onto-the-state-file</code></a>, <a href="#test-green-cli-test-clj-unknown-options-stop-before-workflow-execution-129"><code>unknown-options-stop-before-workflow-execution</code></a>, <a href="#test-green-cli-test-clj-core-scalar-numbers-and-strings-140"><code>core-scalar-numbers-and-strings</code></a>, <a href="#test-green-cli-test-clj-core-signed-infinity-158"><code>core-signed-infinity</code></a></p>
+<p>Covers YAML and EDN parsing, YAML 1.2 scalars, COLORS_PAR_* overlays and coercion.</p>
+<p>5 top-level forms; named definitions/tests: <a href="#test-green-cli-test-clj-colors-par-variables-overlay-desired-state-5"><code>colors-par-variables-overlay-desired-state</code></a>, <a href="#test-green-cli-test-clj-desired-state-is-read-by-extension-38"><code>desired-state-is-read-by-extension</code></a>, <a href="#test-green-cli-test-clj-core-scalar-numbers-and-strings-52"><code>core-scalar-numbers-and-strings</code></a>, <a href="#test-green-cli-test-clj-core-signed-infinity-70"><code>core-signed-infinity</code></a></p>
 </header>
 <article class="docco-row" id="test-green-cli-test-clj-green-cli-test-1">
 <div class="docs">
@@ -2312,117 +2002,12 @@ main { min-width:0; }
 <p>Namespace declaration and dependency surface for this file.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">(ns green.cli-test
-  (:require
-   [clojure.java.io :as io]
-   [clojure.test :refer [deftest is testing]]
-   [green.cli :as cli]
-   [green.lifecycle :as lifecycle]
-   [green.workflow :as wf])
-  (:import
-   [java.io File]))</code></pre></div>
+  (:require [clojure.test :refer [deftest is testing]]
+            [green.cli :as cli]))</code></pre></div>
 </article>
-<article class="docco-row" id="test-green-cli-test-clj-state-file-11">
+<article class="docco-row" id="test-green-cli-test-clj-colors-par-variables-overlay-desired-state-5">
 <div class="docs">
-<h3><code>state-file</code> <span style="color:var(--muted);font-weight:400">(private function, line 11)</span></h3>
-<p>Test helper for test.green.cli-test.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- state-file
-  ([content] (state-file content &quot;.edn&quot;))
-  ([content ext]
-   (let [f (File/createTempFile &quot;green-state&quot; ext)]
-     (spit f content)
-     (str f))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-probe-wf-18">
-<div class="docs">
-<h3><code>probe-wf</code> <span style="color:var(--muted);font-weight:400">(private function, line 18)</span></h3>
-<p>Test helper for test.green.cli-test.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- probe-wf []
-  (wf/workflow {:start :t/a
-                :wire-fn (fn [s _]
-                           (case s
-                             :t/a [(fn [o] (update o :seen (fnil conj []) [:a (:green/event o) (:x o)]))
-                                   :t/b]
-                             :t/b [(fn [o] (update o :seen conj :b))]))}))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-event-and-state-flow-into-the-workflow-26">
-<div class="docs">
-<h3><code>event-and-state-flow-into-the-workflow</code> <span style="color:var(--muted);font-weight:400">(test, line 26)</span></h3>
-<p>Verifies that event and state flow into the workflow.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest event-and-state-flow-into-the-workflow
-  (let [res (cli/run-cli (probe-wf) [&quot;create&quot; &quot;-f&quot; (state-file &quot;{:x 1}&quot;)])]
-    (is (= 0 (:green/exit res)))
-    (is (= [[:a :create 1] :b] (:seen res)))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-arbitrary-events-are-allowed-31">
-<div class="docs">
-<h3><code>arbitrary-events-are-allowed</code> <span style="color:var(--muted);font-weight:400">(test, line 31)</span></h3>
-<p>Verifies that arbitrary events are allowed.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest arbitrary-events-are-allowed
-  (let [res (cli/run-cli (probe-wf) [&quot;provision&quot; &quot;-f&quot; (state-file &quot;{:x 2}&quot;)])]
-    (is (= [[:a :provision 2] :b] (:seen res)))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-slices-via-start-and-end-35">
-<div class="docs">
-<h3><code>slices-via-start-and-end</code> <span style="color:var(--muted);font-weight:400">(test, line 35)</span></h3>
-<p>Verifies that slices via start and end.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest slices-via-start-and-end
-  (testing &quot;--end is an inclusive boundary&quot;
-    (let [res (cli/run-cli (probe-wf)
-                           [&quot;create&quot; &quot;-f&quot; (state-file &quot;{:x 1}&quot;) &quot;--end&quot; &quot;t/a&quot;])]
-      (is (= [[:a :create 1]] (:seen res)))))
-  (testing &quot;--start skips earlier steps&quot;
-    (let [res (cli/run-cli (probe-wf)
-                           [&quot;create&quot; &quot;-f&quot; (state-file &quot;{:x 1}&quot;) &quot;--start&quot; &quot;t/b&quot;])]
-      (is (= [:b] (:seen res))))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-dry-run-flag-stamps-the-key-45">
-<div class="docs">
-<h3><code>dry-run-flag-stamps-the-key</code> <span style="color:var(--muted);font-weight:400">(test, line 45)</span></h3>
-<p>Verifies that dry run flag stamps the key.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest dry-run-flag-stamps-the-key
-  (let [wf (wf/workflow {:start :t/a
-                         :wire-fn (fn [_ _] [(fn [o] (assoc o :dry (:green/dry-run o)))])})]
-    (is (true? (:dry (cli/run-cli wf [&quot;create&quot; &quot;-f&quot; (state-file &quot;{}&quot;) &quot;--dry-run&quot;]))))
-    (is (nil? (:dry (cli/run-cli wf [&quot;create&quot; &quot;-f&quot; (state-file &quot;{}&quot;)]))))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-usage-errors-exit-2-51">
-<div class="docs">
-<h3><code>usage-errors-exit-2</code> <span style="color:var(--muted);font-weight:400">(test, line 51)</span></h3>
-<p>Verifies that usage errors exit 2.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest usage-errors-exit-2
-  (testing &quot;missing event&quot;
-    (let [res (cli/run-cli (probe-wf) [])]
-      (is (= 2 (:green/exit res)))
-      (is (re-find #&quot;Usage&quot; (:green/err res)))))
-  (testing &quot;missing state file&quot;
-    (let [res (cli/run-cli (probe-wf) [&quot;create&quot; &quot;-f&quot; &quot;/nonexistent/green.edn&quot;])]
-      (is (= 2 (:green/exit res)))
-      (is (re-find #&quot;not found&quot; (:green/err res))))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-colors-par-variables-overlay-desired-state-61">
-<div class="docs">
-<h3><code>colors-par-variables-overlay-desired-state</code> <span style="color:var(--muted);font-weight:400">(test, line 61)</span></h3>
+<h3><code>colors-par-variables-overlay-desired-state</code> <span style="color:var(--muted);font-weight:400">(test, line 5)</span></h3>
 <p>Verifies that colors par variables overlay desired state.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -2460,25 +2045,9 @@ main { min-width:0; }
                                  &quot;BLUE_PAR_DO_TOKEN&quot; &quot;tok&quot;
                                  &quot;ONCE_PAR_DO_TOKEN&quot; &quot;tok&quot;})))))</code></pre></div>
 </article>
-<article class="docco-row" id="test-green-cli-test-clj-shared-package-conventions-94">
+<article class="docco-row" id="test-green-cli-test-clj-desired-state-is-read-by-extension-38">
 <div class="docs">
-<h3><code>shared-package-conventions</code> <span style="color:var(--muted);font-weight:400">(test, line 94)</span></h3>
-<p>Verifies that shared package conventions.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest shared-package-conventions
-  (let [file (state-file &quot;{}&quot;)]
-    (is (= (str (.getParent (io/file file)) &quot;/.colors/demo/tool&quot;)
-           (cli/stage-dir {:green/state-file file :profile &quot;demo&quot;} &quot;tool&quot;))))
-  (is (= {:green/event :create :x 1 :green/exit 0}
-         (lifecycle/preflight {:green/event :create}
-                              {:defaults {:x 1} :validators [(fn [_ _ _] [])]}
-                              {}))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-desired-state-is-read-by-extension-103">
-<div class="docs">
-<h3><code>desired-state-is-read-by-extension</code> <span style="color:var(--muted);font-weight:400">(test, line 103)</span></h3>
+<h3><code>desired-state-is-read-by-extension</code> <span style="color:var(--muted);font-weight:400">(test, line 38)</span></h3>
 <p>Verifies that desired state is read by extension.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -2495,48 +2064,11 @@ main { min-width:0; }
 
   (testing &quot;edn is still read, so existing projects keep working&quot;
     (is (= {:profile &quot;prod&quot; :port 587}
-           (cli/read-state &quot;green.edn&quot; &quot;{:profile \&quot;prod\&quot; :port 587}&quot;))))
-
-  (testing &quot;run-cli reads a yaml state file end to end&quot;
-    (let [res (cli/run-cli (probe-wf) [&quot;create&quot; &quot;-f&quot; (state-file &quot;x: 3\n&quot; &quot;.yml&quot;)])]
-      (is (= 0 (:green/exit res)))
-      (is (= [[:a :create 3] :b] (:seen res))))))</code></pre></div>
+           (cli/read-state &quot;green.edn&quot; &quot;{:profile \&quot;prod\&quot; :port 587}&quot;)))))</code></pre></div>
 </article>
-<article class="docco-row" id="test-green-cli-test-clj-run-cli-overlays-pars-onto-the-state-file-122">
+<article class="docco-row" id="test-green-cli-test-clj-core-scalar-numbers-and-strings-52">
 <div class="docs">
-<h3><code>run-cli-overlays-pars-onto-the-state-file</code> <span style="color:var(--muted);font-weight:400">(test, line 122)</span></h3>
-<p>Verifies that run cli overlays pars onto the state file.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest run-cli-overlays-pars-onto-the-state-file
-  (let [wf (wf/workflow {:start :t/a
-                         :wire-fn (fn [_ _] [(fn [o] (assoc o :seen (:token o)))])})]
-    (with-redefs [cli/read-pars (fn [opts] (assoc opts :token &quot;from-env&quot;))]
-      (is (= &quot;from-env&quot;
-             (:seen (cli/run-cli wf [&quot;create&quot; &quot;-f&quot; (state-file &quot;{:token \&quot;REPLACE_ME\&quot;}&quot;)])))))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-unknown-options-stop-before-workflow-execution-129">
-<div class="docs">
-<h3><code>unknown-options-stop-before-workflow-execution</code> <span style="color:var(--muted);font-weight:400">(test, line 129)</span></h3>
-<p>Verifies that unknown options stop before workflow execution.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest unknown-options-stop-before-workflow-execution
-  (let [calls (atom 0)
-        workflow (wf/workflow {:start :t/a
-                               :wire-fn (fn [_ _] [(fn [o] (swap! calls inc) o)])})
-        file (state-file &quot;{}&quot;)]
-    (doseq [flag [&quot;--dryrun&quot; &quot;--bogus&quot; &quot;--dryrun=true&quot; &quot;-z&quot;]]
-      (let [result (cli/run-cli workflow [&quot;create&quot; &quot;-f&quot; file flag])]
-        (is (= 2 (:green/exit result)))
-        (is (re-find #&quot;Unknown option&quot; (:green/err result)))))
-    (is (zero? @calls))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-cli-test-clj-core-scalar-numbers-and-strings-140">
-<div class="docs">
-<h3><code>core-scalar-numbers-and-strings</code> <span style="color:var(--muted);font-weight:400">(test, line 140)</span></h3>
+<h3><code>core-scalar-numbers-and-strings</code> <span style="color:var(--muted);font-weight:400">(test, line 52)</span></h3>
 <p>Verifies that core scalar numbers and strings.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -2559,9 +2091,9 @@ main { min-width:0; }
     (is (= &quot;0o17&quot; (:tagged state)))
     (is (= &quot;0o17\n&quot; (:block state)))))</code></pre></div>
 </article>
-<article class="docco-row" id="test-green-cli-test-clj-core-signed-infinity-158">
+<article class="docco-row" id="test-green-cli-test-clj-core-signed-infinity-70">
 <div class="docs">
-<h3><code>core-signed-infinity</code> <span style="color:var(--muted);font-weight:400">(test, line 158)</span></h3>
+<h3><code>core-signed-infinity</code> <span style="color:var(--muted);font-weight:400">(test, line 70)</span></h3>
 <p>Verifies that core signed infinity.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -2572,199 +2104,6 @@ main { min-width:0; }
     (is (= Double/NEGATIVE_INFINITY (:negative state)))
     (is (Double/isNaN (:nan state)))
     (is (= &quot;-.Inf&quot; (:quoted state)))))</code></pre></div>
-</article>
-</section>
-<section class="file" id="test-green-dry-run-test-clj">
-<header class="file-header">
-<h2><code>test/green/dry_run_test.clj</code></h2>
-<p>Tests that dry-run advice suppresses side effects only when :green/dry-run is present and remains removable like any other advice.</p>
-<p>5 top-level forms; named definitions/tests: <a href="#test-green-dry-run-test-clj-effect-wf-7"><code>effect-wf</code></a>, <a href="#test-green-dry-run-test-clj-dry-run-skips-advised-steps-15"><code>dry-run-skips-advised-steps</code></a>, <a href="#test-green-dry-run-test-clj-without-the-flag-steps-run-normally-25"><code>without-the-flag-steps-run-normally</code></a>, <a href="#test-green-dry-run-test-clj-dry-run-advice-is-removable-per-step-31"><code>dry-run-advice-is-removable-per-step</code></a></p>
-</header>
-<article class="docco-row" id="test-green-dry-run-test-clj-green-dry-run-test-1">
-<div class="docs">
-<h3><code>green.dry-run-test</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>Namespace declaration and dependency surface for this file.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">(ns green.dry-run-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer [deftest is testing]]
-            [green.dry-run :as dry-run]
-            [green.workflow :as wf]))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-dry-run-test-clj-effect-wf-7">
-<div class="docs">
-<h3><code>effect-wf</code> <span style="color:var(--muted);font-weight:400">(private function, line 7)</span></h3>
-<p>Test helper for test.green.dry-run-test.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- effect-wf [effects]
-  (-&gt; (wf/workflow {:start :t/a
-                    :wire-fn (fn [s _]
-                               (case s
-                                 :t/a [(fn [o] (swap! effects conj :a) o) :t/b]
-                                 :t/b [(fn [o] (swap! effects conj :b) o)]))})
-      (dry-run/advise [:t/a :t/b])))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-dry-run-test-clj-dry-run-skips-advised-steps-15">
-<div class="docs">
-<h3><code>dry-run-skips-advised-steps</code> <span style="color:var(--muted);font-weight:400">(test, line 15)</span></h3>
-<p>Verifies that dry run skips advised steps.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest dry-run-skips-advised-steps
-  (let [effects (atom [])
-        out (with-out-str
-              (is (= 0 (:green/exit (wf/run (effect-wf effects)
-                                            {:green/event :create
-                                             :green/dry-run true})))))]
-    (is (= [] @effects) &quot;no side effects ran&quot;)
-    (is (str/includes? out &quot;would run :t/a&quot;))
-    (is (str/includes? out &quot;would run :t/b&quot;))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-dry-run-test-clj-without-the-flag-steps-run-normally-25">
-<div class="docs">
-<h3><code>without-the-flag-steps-run-normally</code> <span style="color:var(--muted);font-weight:400">(test, line 25)</span></h3>
-<p>Verifies that without the flag steps run normally.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest without-the-flag-steps-run-normally
-  (let [effects (atom [])
-        res (wf/run (effect-wf effects) {:green/event :create})]
-    (is (= 0 (:green/exit res)))
-    (is (= [:a :b] @effects))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-dry-run-test-clj-dry-run-advice-is-removable-per-step-31">
-<div class="docs">
-<h3><code>dry-run-advice-is-removable-per-step</code> <span style="color:var(--muted);font-weight:400">(test, line 31)</span></h3>
-<p>Verifies that dry run advice is removable per step.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest dry-run-advice-is-removable-per-step
-  (let [effects (atom [])
-        w (-&gt; (effect-wf effects)
-              (wf/advice-remove :t/b ::dry-run/skip))]
-    (with-out-str (wf/run w {:green/event :create :green/dry-run true}))
-    (testing &quot;:t/a skipped, :t/b ran&quot;
-      (is (= [:b] @effects)))))</code></pre></div>
-</article>
-</section>
-<section class="file" id="test-green-progress-test-clj">
-<header class="file-header">
-<h2><code>test/green/progress_test.clj</code></h2>
-<p>Tests progress advice output and confirms the engine stamps :green/step before the advised function runs.</p>
-<p>7 top-level forms; named definitions/tests: <a href="#test-green-progress-test-clj-simple-wf-7"><code>simple-wf</code></a>, <a href="#test-green-progress-test-clj-progress-prints-step-names-15"><code>progress-prints-step-names</code></a>, <a href="#test-green-progress-test-clj-progress-prints-event-name-24"><code>progress-prints-event-name</code></a>, <a href="#test-green-progress-test-clj-progress-is-removable-29"><code>progress-is-removable</code></a>, <a href="#test-green-progress-test-clj-progress-with-forks-34"><code>progress-with-forks</code></a>, <a href="#test-green-progress-test-clj-green-step-is-set-in-opts-51"><code>green-step-is-set-in-opts</code></a></p>
-</header>
-<article class="docco-row" id="test-green-progress-test-clj-green-progress-test-1">
-<div class="docs">
-<h3><code>green.progress-test</code> <span style="color:var(--muted);font-weight:400">(namespace, line 1)</span></h3>
-<p>Namespace declaration and dependency surface for this file.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">(ns green.progress-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer [deftest is]]
-            [green.progress :as progress]
-            [green.workflow :as wf]))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-progress-test-clj-simple-wf-7">
-<div class="docs">
-<h3><code>simple-wf</code> <span style="color:var(--muted);font-weight:400">(private function, line 7)</span></h3>
-<p>Test helper for test.green.progress-test.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- simple-wf []
-  (-&gt; (wf/workflow {:start :t/a
-                    :wire-fn (fn [s _]
-                               (case s
-                                 :t/a [(fn [o] o) :t/b]
-                                 :t/b [(fn [o] o)]))})
-      (progress/advise)))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-progress-test-clj-progress-prints-step-names-15">
-<div class="docs">
-<h3><code>progress-prints-step-names</code> <span style="color:var(--muted);font-weight:400">(test, line 15)</span></h3>
-<p>Verifies that progress prints step names.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest progress-prints-step-names
-  (let [out (with-out-str
-              (wf/run (simple-wf) {:green/event :create}))]
-    (is (str/includes? out &quot;&gt;&gt;&gt; :t/a (create)&quot;))
-    (is (str/includes? out &quot;&lt;&lt;&lt; :t/a&quot;))
-    (is (str/includes? out &quot;&gt;&gt;&gt; :t/b (create)&quot;))
-    (is (str/includes? out &quot;&lt;&lt;&lt; :t/b&quot;))
-    (is (str/includes? out &quot;ms)&quot;) &quot;elapsed time is printed&quot;)))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-progress-test-clj-progress-prints-event-name-24">
-<div class="docs">
-<h3><code>progress-prints-event-name</code> <span style="color:var(--muted);font-weight:400">(test, line 24)</span></h3>
-<p>Verifies that progress prints event name.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest progress-prints-event-name
-  (let [out (with-out-str
-              (wf/run (simple-wf) {:green/event :delete}))]
-    (is (str/includes? out &quot;&gt;&gt;&gt; :t/a (delete)&quot;))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-progress-test-clj-progress-is-removable-29">
-<div class="docs">
-<h3><code>progress-is-removable</code> <span style="color:var(--muted);font-weight:400">(test, line 29)</span></h3>
-<p>Verifies that progress is removable.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest progress-is-removable
-  (let [w (wf/advice-remove-all (simple-wf) ::progress/progress)
-        out (with-out-str (wf/run w {:green/event :create}))]
-    (is (= &quot;&quot; out))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-progress-test-clj-progress-with-forks-34">
-<div class="docs">
-<h3><code>progress-with-forks</code> <span style="color:var(--muted);font-weight:400">(test, line 34)</span></h3>
-<p>Verifies that progress with forks.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest progress-with-forks
-  (let [w (-&gt; (wf/workflow
-                {:start :t/start
-                 :wire-fn (fn [s _]
-                            (case s
-                              :t/start [(fn [o] o) :t/join]
-                              :t/join [(fn [o] o)]))
-                 :next-fn (fn [step dn o]
-                            (if (= step :t/start)
-                              [[:t/join (assoc o :branch :a)]
-                               [:t/join (assoc o :branch :b)]]
-                              (mapv (fn [s] [s o]) dn)))})
-              (progress/advise))
-        out (with-out-str (wf/run w {:green/event :create}))]
-    (is (str/includes? out &quot;&gt;&gt;&gt; :t/start&quot;))
-    (is (str/includes? out &quot;&gt;&gt;&gt; :t/join&quot;))))</code></pre></div>
-</article>
-<article class="docco-row" id="test-green-progress-test-clj-green-step-is-set-in-opts-51">
-<div class="docs">
-<h3><code>green-step-is-set-in-opts</code> <span style="color:var(--muted);font-weight:400">(test, line 51)</span></h3>
-<p>Verifies that green step is set in opts.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(deftest green-step-is-set-in-opts
-  (let [seen (atom [])
-        w (wf/workflow {:start :t/a
-                        :wire-fn (fn [s _]
-                                   (case s
-                                     :t/a [(fn [o] (swap! seen conj (:green/step o)) o) :t/b]
-                                     :t/b [(fn [o] (swap! seen conj (:green/step o)) o)]))})
-        res (wf/run w {:green/event :create})]
-    (is (= [:t/a :t/b] @seen))
-    (is (= 0 (:green/exit res)))))</code></pre></div>
 </article>
 </section>
 <section class="file" id="test-green-workflow-test-clj">
@@ -3241,13 +2580,13 @@ main { min-width:0; }
 <section class="file" id="examples-hello-green">
 <header class="file-header">
 <h2><code>examples/hello/green</code></h2>
-<p>Executable babashka launcher for the hello example: a lifecycle preflight, then uname (a read-only local CLI call) and a file write fork in parallel and join at a check step. Delete removes the file. Progress and dry-run are advice.</p>
-<p>15 top-level forms; named definitions/tests: <a href="#examples-hello-green-script-dir-15"><code>script-dir</code></a>, <a href="#examples-hello-green-greeting-path-35"><code>greeting-path</code></a>, <a href="#examples-hello-green-greeting-43"><code>greeting</code></a>, <a href="#examples-hello-green-non-blank-46"><code>non-blank</code></a>, <a href="#examples-hello-green-start-step-52"><code>start-step</code></a>, <a href="#examples-hello-green-uname-step-61"><code>uname-step</code></a>, <a href="#examples-hello-green-write-step-69"><code>write-step</code></a>, <a href="#examples-hello-green-check-step-77"><code>check-step</code></a>, <a href="#examples-hello-green-remove-step-89"><code>remove-step</code></a>, <a href="#examples-hello-green-wire-fn-95"><code>wire-fn</code></a>, <a href="#examples-hello-green-workflow-107"><code>workflow</code></a></p>
+<p>Application-owned Babashka CLI: validates inputs, forks uname and an embedded write/verify workflow, then joins at check. Reporting and dry-run are application-defined advice inherited by child steps.</p>
+<p>19 top-level forms; named definitions/tests: <a href="#examples-hello-green-script-dir-15"><code>script-dir</code></a>, <a href="#examples-hello-green-greeting-path-33"><code>greeting-path</code></a>, <a href="#examples-hello-green-greeting-41"><code>greeting</code></a>, <a href="#examples-hello-green-start-step-44"><code>start-step</code></a>, <a href="#examples-hello-green-uname-step-54"><code>uname-step</code></a>, <a href="#examples-hello-green-write-step-62"><code>write-step</code></a>, <a href="#examples-hello-green-check-step-70"><code>check-step</code></a>, <a href="#examples-hello-green-remove-step-82"><code>remove-step</code></a>, <a href="#examples-hello-green-verify-step-88"><code>verify-step</code></a>, <a href="#examples-hello-green-artifact-workflow-93"><code>artifact-workflow</code></a>, <a href="#examples-hello-green-wire-fn-100"><code>wire-fn</code></a>, <a href="#examples-hello-green-report-step-111"><code>report-step</code></a>, <a href="#examples-hello-green-skip-write-118"><code>skip-write</code></a>, <a href="#examples-hello-green-workflow-123"><code>workflow</code></a>, <a href="#examples-hello-green-main-130"><code>main</code></a></p>
 </header>
 <article class="docco-row" id="examples-hello-green-require-13">
 <div class="docs">
 <h3><code>require</code> <span style="color:var(--muted);font-weight:400">(script require, line 13)</span></h3>
-<p>hello — the smallest useful green package.<br>./green create             # uname ∥ write greeting  →  check (join)<br>./green create --dry-run   # uname still runs (read-only); writes are skipped<br>./green delete             # remove the greeting file<br>COLORS_PAR_NAME=agent ./green create<br>Steps call local CLIs and the file system directly. A real package does the<br>same with a cloud CLI or API (<code>gcloud</code>, <code>doctl</code>, <code>oci</code>, an HTTP client):<br>green owns the graph, the advice and the CLI; the steps own the side effects.</p>
+<p>hello — the smallest useful green package.<br>./green create             # uname ∥ write greeting  →  check (join)<br>./green create --dry-run   # uname still runs (read-only); writes are skipped<br>./green delete             # remove the greeting file<br>COLORS_PAR_NAME=agent ./green create<br>Steps call local CLIs and the file system directly. A real package does the<br>same with a cloud CLI or API (<code>gcloud</code>, <code>doctl</code>, <code>oci</code>, an HTTP client):<br>green owns graphs, subworkflows and advice; this application owns its CLI.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">#!/usr/bin/env bb
 ;; hello — the smallest useful green package.
@@ -3259,7 +2598,7 @@ main { min-width:0; }
 ;;
 ;; Steps call local CLIs and the file system directly. A real package does the
 ;; same with a cloud CLI or API (`gcloud`, `doctl`, `oci`, an HTTP client):
-;; green owns the graph, the advice and the CLI; the steps own the side effects.
+;; green owns graphs, subworkflows and advice; this application owns its CLI.
 
 (require &#39;[babashka.fs :as fs])</code></pre></div>
 </article>
@@ -3296,18 +2635,16 @@ main { min-width:0; }
 </div>
 <div class="code"><pre><code class="language-clojure">
 
-(require &#39;[clojure.java.shell :as shell]
+(require &#39;[babashka.cli :as args]
+         &#39;[clojure.java.shell :as shell]
          &#39;[clojure.string :as str]
          &#39;[green.cli :as cli]
-         &#39;[green.dry-run :as dry-run]
-         &#39;[green.lifecycle :as lifecycle]
-         &#39;[green.progress :as progress]
          &#39;[green.workflow :as wf])</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-greeting-path-35">
+<article class="docco-row" id="examples-hello-green-greeting-path-33">
 <div class="docs">
-<h3><code>greeting-path</code> <span style="color:var(--muted);font-weight:400">(function, line 35)</span></h3>
-<p>Resolves the greeting file against the desired-state file&#39;s directory (:green/state-file), preserving absolute paths.</p><p>The greeting file, resolved against the desired-state file&#39;s directory.</p>
+<h3><code>greeting-path</code> <span style="color:var(--muted);font-weight:400">(function, line 33)</span></h3>
+<p>Resolves the greeting file against the desired-state file&#39;s directory (:hello/state-file), preserving absolute paths.</p><p>The greeting file, resolved against the desired-state file&#39;s directory.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
@@ -3317,11 +2654,11 @@ main { min-width:0; }
   (let [p (fs/path (:greeting-file opts))]
     (str (if (fs/absolute? p)
            p
-           (fs/path (fs/parent (:green/state-file opts)) p)))))</code></pre></div>
+           (fs/path (fs/parent (:hello/state-file opts)) p)))))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-greeting-43">
+<article class="docco-row" id="examples-hello-green-greeting-41">
 <div class="docs">
-<h3><code>greeting</code> <span style="color:var(--muted);font-weight:400">(function, line 43)</span></h3>
+<h3><code>greeting</code> <span style="color:var(--muted);font-weight:400">(function, line 41)</span></h3>
 <p>Function greeting in this file&#39;s workflow or public API.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -3329,38 +2666,26 @@ main { min-width:0; }
 (defn greeting [opts]
   (str &quot;hello, &quot; (:name opts) &quot;\n&quot;))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-non-blank-46">
+<article class="docco-row" id="examples-hello-green-start-step-44">
 <div class="docs">
-<h3><code>non-blank</code> <span style="color:var(--muted);font-weight:400">(private function, line 46)</span></h3>
-<p>Validator factory for lifecycle/preflight: returns an error string naming both the YAML key and its COLORS_PAR_* variable.</p>
-</div>
-<div class="code"><pre><code class="language-clojure">
-
-(defn- non-blank [k]
-  (fn [opts _env _context]
-    (when (str/blank? (str (get opts k)))
-      [(str (name k) &quot; must not be blank (set it in green.yml or &quot;
-            (cli/par-name k) &quot;)&quot;)])))</code></pre></div>
-</article>
-<article class="docco-row" id="examples-hello-green-start-step-52">
-<div class="docs">
-<h3><code>start-step</code> <span style="color:var(--muted);font-weight:400">(function, line 52)</span></h3>
-<p>Preflight step: defaults, the idempotent COLORS_PAR_* overlay and validators. Failure stops the workflow with exit 2.</p><p>Preflight: defaults, the COLORS_PAR_* overlay (idempotent) and validators.<br>  A failing validator returns exit 2 and the workflow stops here.</p>
+<h3><code>start-step</code> <span style="color:var(--muted);font-weight:400">(function, line 44)</span></h3>
+<p>Application validation step. Failure stops the workflow with exit 2.</p><p>Application validation; configuration and defaults are prepared by main.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
 (defn start-step
-  &quot;Preflight: defaults, the COLORS_PAR_* overlay (idempotent) and validators.
-  A failing validator returns exit 2 and the workflow stops here.&quot;
+  &quot;Application validation; configuration and defaults are prepared by main.&quot;
   [opts]
-  (lifecycle/preflight opts {:defaults {:greeting-file &quot;work/hello.txt&quot;}
-                             :overlay cli/read-pars
-                             :validators [(non-blank :name)
-                                          (non-blank :greeting-file)]}))</code></pre></div>
+  (let [errors (for [k [:name :greeting-file]
+                     :when (str/blank? (str (get opts k)))]
+                 (str (name k) &quot; must not be blank (&quot; (cli/par-name k) &quot;)&quot;))]
+    (if (seq errors)
+      (assoc opts :green/exit 2 :green/err (str/join &quot;; &quot; errors))
+      opts)))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-uname-step-61">
+<article class="docco-row" id="examples-hello-green-uname-step-54">
 <div class="docs">
-<h3><code>uname-step</code> <span style="color:var(--muted);font-weight:400">(function, line 61)</span></h3>
+<h3><code>uname-step</code> <span style="color:var(--muted);font-weight:400">(function, line 54)</span></h3>
 <p>A read-only local CLI call. Real packages call cloud CLIs or APIs the same way, directly from a step.</p><p>Read-only local CLI call: record the kernel name.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -3373,9 +2698,9 @@ main { min-width:0; }
       (assoc opts :hello/kernel (str/trim out))
       (assoc opts :green/exit exit :green/err (str &quot;uname failed: &quot; err)))))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-write-step-69">
+<article class="docco-row" id="examples-hello-green-write-step-62">
 <div class="docs">
-<h3><code>write-step</code> <span style="color:var(--muted);font-weight:400">(function, line 69)</span></h3>
+<h3><code>write-step</code> <span style="color:var(--muted);font-weight:400">(function, line 62)</span></h3>
 <p>Side-effecting step that writes the greeting file; dry-run advice skips it.</p><p>Side effect: write the greeting file.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -3388,9 +2713,9 @@ main { min-width:0; }
     (spit path (greeting opts))
     (assoc opts :hello/written path)))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-check-step-77">
+<article class="docco-row" id="examples-hello-green-check-step-70">
 <div class="docs">
-<h3><code>check-step</code> <span style="color:var(--muted);font-weight:400">(function, line 77)</span></h3>
+<h3><code>check-step</code> <span style="color:var(--muted);font-weight:400">(function, line 70)</span></h3>
 <p>Join step: merges both branch results from :green/branches, reads the file back and verifies it.</p><p>Join: merge both branches, read the file back and verify it.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -3407,9 +2732,9 @@ main { min-width:0; }
       (assoc opts :green/exit 1
                   :green/err (str &quot;unexpected content in &quot; path &quot;: &quot; (pr-str actual))))))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-remove-step-89">
+<article class="docco-row" id="examples-hello-green-remove-step-82">
 <div class="docs">
-<h3><code>remove-step</code> <span style="color:var(--muted);font-weight:400">(function, line 89)</span></h3>
+<h3><code>remove-step</code> <span style="color:var(--muted);font-weight:400">(function, line 82)</span></h3>
 <p>Idempotent delete-event step.</p><p>Side effect: delete the greeting file. Idempotent.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
@@ -3420,55 +2745,134 @@ main { min-width:0; }
   (fs/delete-if-exists (greeting-path opts))
   opts)</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-wire-fn-95">
+<article class="docco-row" id="examples-hello-green-verify-step-88">
 <div class="docs">
-<h3><code>wire-fn</code> <span style="color:var(--muted);font-weight:400">(function, line 95)</span></h3>
-<p>Static graph declaration for the workflow, per event. The engine uses it both to run steps and to reason about possible joins.</p><p>Static graph per event. Two successors fork in parallel; both reach<br>  :hello/check, so it runs once as their join.</p>
+<h3><code>verify-step</code> <span style="color:var(--muted);font-weight:400">(function, line 88)</span></h3>
+<p>Function verify-step in this file&#39;s workflow or public API.</p>
+</div>
+<div class="code"><pre><code class="language-clojure">
+
+(defn verify-step [opts]
+  (if (= (greeting opts) (slurp (greeting-path opts)))
+    opts
+    (assoc opts :green/exit 1 :green/err &quot;Greeting verification failed&quot;)))</code></pre></div>
+</article>
+<article class="docco-row" id="examples-hello-green-artifact-workflow-93">
+<div class="docs">
+<h3><code>artifact-workflow</code> <span style="color:var(--muted);font-weight:400">(var, line 93)</span></h3>
+<p>Top-level value used by this namespace: artifact-workflow.</p>
+</div>
+<div class="code"><pre><code class="language-clojure">
+
+(def artifact-workflow
+  (wf/workflow {:start :hello/write
+                :wire-fn (fn [step _]
+                           (case step
+                             :hello/write [write-step :hello/verify]
+                             :hello/verify [verify-step]))}))</code></pre></div>
+</article>
+<article class="docco-row" id="examples-hello-green-wire-fn-100">
+<div class="docs">
+<h3><code>wire-fn</code> <span style="color:var(--muted);font-weight:400">(function, line 100)</span></h3>
+<p>Static graph declaration for the workflow, per event. The engine uses it both to run steps and to reason about possible joins.</p><p>The artifact subworkflow runs alongside uname, then both join at check.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
 (defn wire-fn
-  &quot;Static graph per event. Two successors fork in parallel; both reach
-  :hello/check, so it runs once as their join.&quot;
+  &quot;The artifact subworkflow runs alongside uname, then both join at check.&quot;
   [step run-opts]
-  (case [(:green/event run-opts) step]
-    [:create :hello/start] [start-step :hello/uname :hello/write]
+  (case [(:hello/event run-opts) step]
+    [:create :hello/start] [start-step :hello/uname :hello/artifact]
     [:create :hello/uname] [uname-step :hello/check]
-    [:create :hello/write] [write-step :hello/check]
+    [:create :hello/artifact] [(wf/step artifact-workflow) :hello/check]
     [:create :hello/check] [check-step]
     [:delete :hello/start] [start-step :hello/remove]
     [:delete :hello/remove] [remove-step]))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-workflow-107">
+<article class="docco-row" id="examples-hello-green-report-step-111">
 <div class="docs">
-<h3><code>workflow</code> <span style="color:var(--muted);font-weight:400">(var, line 107)</span></h3>
-<p>Assembled workflow value with graph wiring plus progress and dry-run advice layers.</p>
+<h3><code>report-step</code> <span style="color:var(--muted);font-weight:400">(function, line 111)</span></h3>
+<p>Application-owned advice; inherited by the artifact&#39;s internal steps.</p>
+</div>
+<div class="code"><pre><code class="language-clojure">
+
+(defn report-step
+  &quot;Application-owned advice; inherited by the artifact&#39;s internal steps.&quot;
+  [inner opts]
+  (let [result (inner opts)]
+    (locking *out* (println &quot;&lt;&lt;&lt;&quot; (:green/step opts)))
+    result))</code></pre></div>
+</article>
+<article class="docco-row" id="examples-hello-green-skip-write-118">
+<div class="docs">
+<h3><code>skip-write</code> <span style="color:var(--muted);font-weight:400">(function, line 118)</span></h3>
+<p>Function skip-write in this file&#39;s workflow or public API.</p>
+</div>
+<div class="code"><pre><code class="language-clojure">
+
+(defn skip-write [inner opts]
+  (if (:hello/dry-run opts)
+    (do (locking *out* (println &quot;dry-run: would run&quot; (:green/step opts))) opts)
+    (inner opts)))</code></pre></div>
+</article>
+<article class="docco-row" id="examples-hello-green-workflow-123">
+<div class="docs">
+<h3><code>workflow</code> <span style="color:var(--muted);font-weight:400">(var, line 123)</span></h3>
+<p>Assembled DAG with an embedded workflow and application reporting/dry-run advice.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
 (def workflow
-  (-&gt; (wf/workflow {:start :hello/start :wire-fn wire-fn})
-      progress/advise
-      ;; Declared last, so its ::skip advice is outermost on these steps.
-      (dry-run/advise [:hello/write :hello/check :hello/remove])))</code></pre></div>
+  (reduce (fn [workflow step]
+            (wf/advice-add workflow step :around :hello/skip skip-write))
+          (wf/advice-add-all (wf/workflow {:start :hello/start :wire-fn wire-fn})
+                             :around :hello/report report-step)
+          [:hello/write :hello/verify :hello/check :hello/remove]))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-green-cli-exec-113">
+<article class="docco-row" id="examples-hello-green-main-130">
 <div class="docs">
-<h3><code>cli/exec</code> <span style="color:var(--muted);font-weight:400">(cli/exec, line 113)</span></h3>
+<h3><code>main</code> <span style="color:var(--muted);font-weight:400">(function, line 130)</span></h3>
+<p>Function main in this file&#39;s workflow or public API.</p>
+</div>
+<div class="code"><pre><code class="language-clojure">
+
+(defn main [argv]
+  (try
+    (let [{:keys [args opts]} (args/parse-args (vec argv)
+                             {:spec {:file {:alias :f :default &quot;green.yml&quot;}
+                                     :dry-run {:coerce :boolean}}
+                              :restrict true})
+          event (first args)]
+      (if-not (and (= 1 (count args)) (#{&quot;create&quot; &quot;delete&quot;} event))
+        {:green/exit 2 :green/err &quot;Usage: green create|delete [-f FILE] [--dry-run]&quot;}
+        (let [file (str (fs/absolutize (:file opts)))
+              state (cli/read-state file (slurp file))]
+          (when-not (map? state)
+            (throw (ex-info &quot;Desired state must be a map&quot; {})))
+          (wf/run workflow
+                  (assoc (cli/read-pars (merge {:greeting-file &quot;work/hello.txt&quot;} state))
+                         :hello/event (keyword event) :hello/state-file file
+                         :hello/dry-run (boolean (:dry-run opts)))))))
+    (catch Exception error
+      {:green/exit 2 :green/err (ex-message error)})))</code></pre></div>
+</article>
+<article class="docco-row" id="examples-hello-green-let-150">
+<div class="docs">
+<h3><code>let</code> <span style="color:var(--muted);font-weight:400">(let, line 150)</span></h3>
 <p>Top-level form.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
-(cli/exec workflow *command-line-args*
-          {:default-file &quot;green.yml&quot; :search-parents true
-           :allowed-events [:create :delete]})</code></pre></div>
+(let [{:green/keys [exit err]} (main *command-line-args*)]
+  (when err (binding [*out* *err*] (println err)))
+  (System/exit (or exit 0)))</code></pre></div>
 </article>
 </section>
 <section class="file" id="examples-hello-test-hello-launcher-test-clj">
 <header class="file-header">
 <h2><code>examples/hello/test/hello/launcher_test.clj</code></h2>
-<p>Drives the real ./green launcher as a subprocess in a scratch directory: dry-run, create, COLORS_PAR_* overlay, idempotent delete, and exit-2 preflight/usage errors.</p>
-<p>8 top-level forms; named definitions/tests: <a href="#examples-hello-test-hello-launcher-test-clj-launcher-14"><code>launcher</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-green-root-17"><code>green-root</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-scratch-dir-20"><code>scratch-dir</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-env-25"><code>env</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-green-34"><code>green</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-create-check-delete-38"><code>create-check-delete</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-preflight-and-usage-errors-exit-2-62"><code>preflight-and-usage-errors-exit-2</code></a></p>
+<p>Drives the real ./green launcher as a subprocess in a scratch directory: dry-run, create, COLORS_PAR_* overlay, idempotent delete, and exit-2 validation/usage errors.</p>
+<p>9 top-level forms; named definitions/tests: <a href="#examples-hello-test-hello-launcher-test-clj-launcher-14"><code>launcher</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-green-root-17"><code>green-root</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-scratch-dir-20"><code>scratch-dir</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-env-25"><code>env</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-green-34"><code>green</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-create-check-delete-38"><code>create-check-delete</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-preflight-and-usage-errors-exit-2-65"><code>preflight-and-usage-errors-exit-2</code></a>, <a href="#examples-hello-test-hello-launcher-test-clj-application-parser-selects-files-and-rejects-usage-errors-77"><code>application-parser-selects-files-and-rejects-usage-errors</code></a></p>
 </header>
 <article class="docco-row" id="examples-hello-test-hello-launcher-test-clj-hello-launcher-test-1">
 <div class="docs">
@@ -3563,11 +2967,14 @@ main { min-width:0; }
         (is (str/includes? out &quot;dry-run: would run :hello/write&quot;))
         (is (str/includes? out &quot;&lt;&lt;&lt; :hello/uname&quot;))
         (is (not (.exists greeting)))))
-    (testing &quot;create forks uname and write, then joins at check&quot;
+    (testing &quot;create forks uname and an artifact subworkflow, then joins at check&quot;
       (let [{:keys [exit out]} (green dir {} &quot;create&quot;)]
         (is (= 0 exit))
         (is (re-find #&quot;hello, world \(\S+\)&quot; out))
-        (is (= &quot;hello, world\n&quot; (slurp greeting)))))
+        (is (= &quot;hello, world\n&quot; (slurp greeting)))
+        (is (str/includes? out &quot;&lt;&lt;&lt; :hello/write&quot;))
+        (is (str/includes? out &quot;&lt;&lt;&lt; :hello/verify&quot;))
+        (is (str/includes? out &quot;&lt;&lt;&lt; :hello/artifact&quot;))))
     (testing &quot;COLORS_PAR_* overlays the desired state&quot;
       (let [{:keys [exit out]} (green dir {&quot;COLORS_PAR_NAME&quot; &quot;agent&quot;} &quot;create&quot;)]
         (is (= 0 exit))
@@ -3578,16 +2985,16 @@ main { min-width:0; }
       (is (not (.exists greeting)))
       (is (= 0 (:exit (green dir {} &quot;delete&quot;)))))))</code></pre></div>
 </article>
-<article class="docco-row" id="examples-hello-test-hello-launcher-test-clj-preflight-and-usage-errors-exit-2-62">
+<article class="docco-row" id="examples-hello-test-hello-launcher-test-clj-preflight-and-usage-errors-exit-2-65">
 <div class="docs">
-<h3><code>preflight-and-usage-errors-exit-2</code> <span style="color:var(--muted);font-weight:400">(test, line 62)</span></h3>
+<h3><code>preflight-and-usage-errors-exit-2</code> <span style="color:var(--muted);font-weight:400">(test, line 65)</span></h3>
 <p>Verifies that preflight and usage errors exit 2.</p>
 </div>
 <div class="code"><pre><code class="language-clojure">
 
 (deftest preflight-and-usage-errors-exit-2
   (let [dir (scratch-dir)]
-    (testing &quot;a blank parameter fails the lifecycle preflight&quot;
+    (testing &quot;a blank parameter fails application validation&quot;
       (let [{:keys [exit err]} (green dir {&quot;COLORS_PAR_NAME&quot; &quot;&quot;} &quot;create&quot;)]
         (is (= 2 exit))
         (is (str/includes? err &quot;COLORS_PAR_NAME&quot;))
@@ -3596,6 +3003,24 @@ main { min-width:0; }
       (let [{:keys [exit err]} (green dir {} &quot;destroy&quot;)]
         (is (= 2 exit))
         (is (str/includes? err &quot;Usage:&quot;))))))</code></pre></div>
+</article>
+<article class="docco-row" id="examples-hello-test-hello-launcher-test-clj-application-parser-selects-files-and-rejects-usage-errors-77">
+<div class="docs">
+<h3><code>application-parser-selects-files-and-rejects-usage-errors</code> <span style="color:var(--muted);font-weight:400">(test, line 77)</span></h3>
+<p>Verifies that application parser selects files and rejects usage errors.</p>
+</div>
+<div class="code"><pre><code class="language-clojure">
+
+(deftest application-parser-selects-files-and-rejects-usage-errors
+  (let [dir (scratch-dir)
+        selected (io/file dir &quot;selected.edn&quot;)]
+    (spit selected &quot;{:name \&quot;selected\&quot; :greeting-file \&quot;work/selected.txt\&quot;}&quot;)
+    (is (= 0 (:exit (green dir {} &quot;create&quot; &quot;-f&quot; (str selected)))))
+    (is (= &quot;hello, selected\n&quot; (slurp (io/file dir &quot;work/selected.txt&quot;))))
+    (doseq [argv [[&quot;create&quot; &quot;--unknown&quot;] [&quot;create&quot; &quot;extra&quot;] []]]
+      (is (= 2 (:exit (apply green dir {} argv)))))
+    (spit selected &quot;[]&quot;)
+    (is (= 2 (:exit (green dir {} &quot;create&quot; &quot;-f&quot; (str selected)))))))</code></pre></div>
 </article>
 </section>
 <footer class="footer">Generated by <code>bb docco</code> from <code>src/green/*.clj</code>, <code>test/green/*.clj</code>, and <code>examples/hello</code>. Edit source and <code>tasks/docco.clj</code> commentary, then regenerate this HTML.</footer>

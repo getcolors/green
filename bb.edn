@@ -1,5 +1,5 @@
 {:paths ["src" "test" "examples/hello/test"]
- ;; babashka.cli is built into babashka; yamlstar is not, so it must be
+ ;; yamlstar is not built into babashka, so it must be
  ;; declared here as well as in deps.edn. Keep the version in lockstep with
  ;; deps.edn — it is pinned exactly on purpose.
  :deps {org.yamlstar/yamlstar {:mvn/version "0.1.17"}}
@@ -11,15 +11,11 @@
                    [green.advice-test]
                    [green.workflow-test]
                    [green.cli-test]
-                   [green.dry-run-test]
-                   [green.progress-test]
                    [hello.launcher-test])
         :task (let [{:keys [fail error]}
                     (clojure.test/run-tests 'green.advice-test
                                             'green.workflow-test
                                             'green.cli-test
-                                            'green.dry-run-test
-                                            'green.progress-test
                                             'hello.launcher-test)]
                 (when (pos? (+ fail error))
                   (System/exit 1)))}}}

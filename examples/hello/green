@@ -8,7 +8,7 @@
 ;;
 ;; Steps call local CLIs and the file system directly. A real package does the
 ;; same with a cloud CLI or API (`gcloud`, `doctl`, `oci`, an HTTP client):
-;; green owns the graph, the advice and the CLI; the steps own the side effects.
+;; green owns graphs, subworkflows and advice; this application owns its CLI.
 
 (require '[babashka.fs :as fs])
 
@@ -24,12 +24,10 @@
          {:local/root (or (System/getenv "GREEN_LIB_ROOT")
                           (str (fs/path script-dir "../..")))}}})
 
-(require '[clojure.java.shell :as shell]
+(require '[babashka.cli :as args]
+         '[clojure.java.shell :as shell]
          '[clojure.string :as str]
          '[green.cli :as cli]
-         '[green.dry-run :as dry-run]
-         '[green.lifecycle :as lifecycle]
-         '[green.progress :as progress]
          '[green.workflow :as wf])
 
 (defn greeting-path
@@ -38,25 +36,20 @@
   (let [p (fs/path (:greeting-file opts))]
     (str (if (fs/absolute? p)
            p
-           (fs/path (fs/parent (:green/state-file opts)) p)))))
+           (fs/path (fs/parent (:hello/state-file opts)) p)))))
 
 (defn greeting [opts]
   (str "hello, " (:name opts) "\n"))
 
-(defn- non-blank [k]
-  (fn [opts _env _context]
-    (when (str/blank? (str (get opts k)))
-      [(str (name k) " must not be blank (set it in green.yml or "
-            (cli/par-name k) ")")])))
-
 (defn start-step
-  "Preflight: defaults, the COLORS_PAR_* overlay (idempotent) and validators.
-  A failing validator returns exit 2 and the workflow stops here."
+  "Application validation; configuration and defaults are prepared by main."
   [opts]
-  (lifecycle/preflight opts {:defaults {:greeting-file "work/hello.txt"}
-                             :overlay cli/read-pars
-                             :validators [(non-blank :name)
-                                          (non-blank :greeting-file)]}))
+  (let [errors (for [k [:name :greeting-file]
+                     :when (str/blank? (str (get opts k)))]
+                 (str (name k) " must not be blank (" (cli/par-name k) ")"))]
+    (if (seq errors)
+      (assoc opts :green/exit 2 :green/err (str/join "; " errors))
+      opts)))
 
 (defn uname-step
   "Read-only local CLI call: record the kernel name."
@@ -92,24 +85,68 @@
   (fs/delete-if-exists (greeting-path opts))
   opts)
 
+(defn verify-step [opts]
+  (if (= (greeting opts) (slurp (greeting-path opts)))
+    opts
+    (assoc opts :green/exit 1 :green/err "Greeting verification failed")))
+
+(def artifact-workflow
+  (wf/workflow {:start :hello/write
+                :wire-fn (fn [step _]
+                           (case step
+                             :hello/write [write-step :hello/verify]
+                             :hello/verify [verify-step]))}))
+
 (defn wire-fn
-  "Static graph per event. Two successors fork in parallel; both reach
-  :hello/check, so it runs once as their join."
+  "The artifact subworkflow runs alongside uname, then both join at check."
   [step run-opts]
-  (case [(:green/event run-opts) step]
-    [:create :hello/start] [start-step :hello/uname :hello/write]
+  (case [(:hello/event run-opts) step]
+    [:create :hello/start] [start-step :hello/uname :hello/artifact]
     [:create :hello/uname] [uname-step :hello/check]
-    [:create :hello/write] [write-step :hello/check]
+    [:create :hello/artifact] [(wf/step artifact-workflow) :hello/check]
     [:create :hello/check] [check-step]
     [:delete :hello/start] [start-step :hello/remove]
     [:delete :hello/remove] [remove-step]))
 
-(def workflow
-  (-> (wf/workflow {:start :hello/start :wire-fn wire-fn})
-      progress/advise
-      ;; Declared last, so its ::skip advice is outermost on these steps.
-      (dry-run/advise [:hello/write :hello/check :hello/remove])))
+(defn report-step
+  "Application-owned advice; inherited by the artifact's internal steps."
+  [inner opts]
+  (let [result (inner opts)]
+    (locking *out* (println "<<<" (:green/step opts)))
+    result))
 
-(cli/exec workflow *command-line-args*
-          {:default-file "green.yml" :search-parents true
-           :allowed-events [:create :delete]})
+(defn skip-write [inner opts]
+  (if (:hello/dry-run opts)
+    (do (locking *out* (println "dry-run: would run" (:green/step opts))) opts)
+    (inner opts)))
+
+(def workflow
+  (reduce (fn [workflow step]
+            (wf/advice-add workflow step :around :hello/skip skip-write))
+          (wf/advice-add-all (wf/workflow {:start :hello/start :wire-fn wire-fn})
+                             :around :hello/report report-step)
+          [:hello/write :hello/verify :hello/check :hello/remove]))
+
+(defn main [argv]
+  (try
+    (let [{:keys [args opts]} (args/parse-args (vec argv)
+                             {:spec {:file {:alias :f :default "green.yml"}
+                                     :dry-run {:coerce :boolean}}
+                              :restrict true})
+          event (first args)]
+      (if-not (and (= 1 (count args)) (#{"create" "delete"} event))
+        {:green/exit 2 :green/err "Usage: green create|delete [-f FILE] [--dry-run]"}
+        (let [file (str (fs/absolutize (:file opts)))
+              state (cli/read-state file (slurp file))]
+          (when-not (map? state)
+            (throw (ex-info "Desired state must be a map" {})))
+          (wf/run workflow
+                  (assoc (cli/read-pars (merge {:greeting-file "work/hello.txt"} state))
+                         :hello/event (keyword event) :hello/state-file file
+                         :hello/dry-run (boolean (:dry-run opts)))))))
+    (catch Exception error
+      {:green/exit 2 :green/err (ex-message error)})))
+
+(let [{:green/keys [exit err]} (main *command-line-args*)]
+  (when err (binding [*out* *err*] (println err)))
+  (System/exit (or exit 0)))

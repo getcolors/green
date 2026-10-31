@@ -7,7 +7,7 @@
 ;; project code: forms are split with a small lexer and described from
 ;; docstrings, leading comments, and the curated notes below.
 
-(def generated-on "2026-10-29")
+(def generated-on "2026-10-31")
 
 (defn globbed [base pattern]
   (->> (fs/glob base pattern)
@@ -26,16 +26,7 @@
    "Pure Emacs-nadvice-style wrapping for Green steps. This namespace owns the registry entry format, ordering rules, inheritance merge helpers, and the actual function composition used by the workflow engine."
 
    "src/green/cli.clj"
-   "The thin CLI layer: parse args, read desired state as YAML or EDN according to the file's extension, overlay COLORS_PAR_* environment variables, stamp the lifecycle event and dry-run bit, optionally slice the workflow, then delegate to green.workflow."
-
-   "src/green/dry_run.clj"
-   "Dry-run is modeled as ordinary advice. Side-effecting steps stay honest and reusable; the CLI merely stamps :green/dry-run into opts."
-
-   "src/green/lifecycle.clj"
-   "Package preflight as one composable function: defaults, the parameter overlay, ordered validators aggregated into a single exit-2 error, and an optional success callback."
-
-   "src/green/progress.clj"
-   "Progress output is also ordinary all-steps advice. It demonstrates that instrumentation can be layered onto any workflow without changing wiring."
+   "Configuration helpers: read YAML or EDN by extension, overlay COLORS_PAR_* environment variables and map parameter names. The namespace stays stable while applications own CLI execution."
 
    "src/green/workflow.clj"
    "The fork/join workflow engine. Steps are plain opts->opts functions, wire-fn supplies the static graph, next-fn can route dynamically, and advice inheritance makes composed workflows behave like ordinary steps."
@@ -44,22 +35,16 @@
    "Unit tests for every advice combinator, strict add ordering, :depth precedence, registry purity, and advice inheritance through embedded workflows."
 
    "test/green/cli_test.clj"
-   "Covers the CLI contract without exiting the JVM: desired-state loading, COLORS_PAR_* overlay and coercion, event stamping, graph slicing, dry-run stamping, stage directories, lifecycle preflight, and usage errors."
-
-   "test/green/dry_run_test.clj"
-   "Tests that dry-run advice suppresses side effects only when :green/dry-run is present and remains removable like any other advice."
-
-   "test/green/progress_test.clj"
-   "Tests progress advice output and confirms the engine stamps :green/step before the advised function runs."
+   "Covers YAML and EDN parsing, YAML 1.2 scalars, COLORS_PAR_* overlays and coercion."
 
    "test/green/workflow_test.clj"
    "Scheduler tests for linear graphs, failures, event-specific static graphs, dynamic routing, fork/join behavior, composition, slices, and real parallelism."
 
    "examples/hello/green"
-   "Executable babashka launcher for the hello example: a lifecycle preflight, then uname (a read-only local CLI call) and a file write fork in parallel and join at a check step. Delete removes the file. Progress and dry-run are advice."
+   "Application-owned Babashka CLI: validates inputs, forks uname and an embedded write/verify workflow, then joins at check. Reporting and dry-run are application-defined advice inherited by child steps."
 
    "examples/hello/test/hello/launcher_test.clj"
-   "Drives the real ./green launcher as a subprocess in a scratch directory: dry-run, create, COLORS_PAR_* overlay, idempotent delete, and exit-2 preflight/usage errors."})
+   "Drives the real ./green launcher as a subprocess in a scratch directory: dry-run, create, COLORS_PAR_* overlay, idempotent delete, and exit-2 validation/usage errors."})
 
 (def source-form-notes
   {;; green.advice
@@ -71,20 +56,6 @@
    "Single-id convenience wrapper around remove-entry-ids. Re-add and remove operations both use this to make ids unique."
    ["src/green/advice.clj" "wrap"]
    "The semantic core of each advice combinator. Given one advice function and the already-built inner chain, it returns the next outer function."
-
-
-   ;; green.cli
-   ["src/green/cli.clj" "base-cli-spec"]
-   "babashka.cli option schema. It keeps coercion and help text close to the parser and lets run-cli focus on workflow setup."
-   ["src/green/cli.clj" "usage"]
-   "Human-readable usage line returned as :green/err when the caller omits the lifecycle event."
-
-   ;; common small helpers
-   ["src/green/dry_run.clj" "logln"]
-   "Synchronized println used by advice that may run on parallel branches; it avoids interleaving output from futures."
-   ["src/green/progress.clj" "logln"]
-   "Synchronized println used by all-steps progress advice, which can run concurrently on forked branches."
-
 
    ;; green.workflow
    ["src/green/workflow.clj" "next-seq"]
@@ -174,15 +145,14 @@
 
 (def common-form-notes
   {"script-dir" "Directory containing the executable launcher, so green and relative resources resolve no matter where the command runs."
-   "greeting-path" "Resolves the greeting file against the desired-state file's directory (:green/state-file), preserving absolute paths."
-   "non-blank" "Validator factory for lifecycle/preflight: returns an error string naming both the YAML key and its COLORS_PAR_* variable."
-   "start-step" "Preflight step: defaults, the idempotent COLORS_PAR_* overlay and validators. Failure stops the workflow with exit 2."
+   "greeting-path" "Resolves the greeting file against the desired-state file's directory (:hello/state-file), preserving absolute paths."
+   "start-step" "Application validation step. Failure stops the workflow with exit 2."
    "uname-step" "A read-only local CLI call. Real packages call cloud CLIs or APIs the same way, directly from a step."
    "write-step" "Side-effecting step that writes the greeting file; dry-run advice skips it."
    "check-step" "Join step: merges both branch results from :green/branches, reads the file back and verifies it."
    "remove-step" "Idempotent delete-event step."
    "wire-fn" "Static graph declaration for the workflow, per event. The engine uses it both to run steps and to reason about possible joins."
-   "workflow" "Assembled workflow value with graph wiring plus progress and dry-run advice layers."})
+   "workflow" "Assembled DAG with an embedded workflow and application reporting/dry-run advice."})
 
 (def html-escape-map
   {\& "&amp;" \< "&lt;" \> "&gt;" \" "&quot;" \' "&#39;"})

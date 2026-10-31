@@ -44,11 +44,14 @@
         (is (str/includes? out "dry-run: would run :hello/write"))
         (is (str/includes? out "<<< :hello/uname"))
         (is (not (.exists greeting)))))
-    (testing "create forks uname and write, then joins at check"
+    (testing "create forks uname and an artifact subworkflow, then joins at check"
       (let [{:keys [exit out]} (green dir {} "create")]
         (is (= 0 exit))
         (is (re-find #"hello, world \(\S+\)" out))
-        (is (= "hello, world\n" (slurp greeting)))))
+        (is (= "hello, world\n" (slurp greeting)))
+        (is (str/includes? out "<<< :hello/write"))
+        (is (str/includes? out "<<< :hello/verify"))
+        (is (str/includes? out "<<< :hello/artifact"))))
     (testing "COLORS_PAR_* overlays the desired state"
       (let [{:keys [exit out]} (green dir {"COLORS_PAR_NAME" "agent"} "create")]
         (is (= 0 exit))
@@ -61,7 +64,7 @@
 
 (deftest preflight-and-usage-errors-exit-2
   (let [dir (scratch-dir)]
-    (testing "a blank parameter fails the lifecycle preflight"
+    (testing "a blank parameter fails application validation"
       (let [{:keys [exit err]} (green dir {"COLORS_PAR_NAME" ""} "create")]
         (is (= 2 exit))
         (is (str/includes? err "COLORS_PAR_NAME"))
@@ -70,3 +73,14 @@
       (let [{:keys [exit err]} (green dir {} "destroy")]
         (is (= 2 exit))
         (is (str/includes? err "Usage:"))))))
+
+(deftest application-parser-selects-files-and-rejects-usage-errors
+  (let [dir (scratch-dir)
+        selected (io/file dir "selected.edn")]
+    (spit selected "{:name \"selected\" :greeting-file \"work/selected.txt\"}")
+    (is (= 0 (:exit (green dir {} "create" "-f" (str selected)))))
+    (is (= "hello, selected\n" (slurp (io/file dir "work/selected.txt"))))
+    (doseq [argv [["create" "--unknown"] ["create" "extra"] []]]
+      (is (= 2 (:exit (apply green dir {} argv)))))
+    (spit selected "[]")
+    (is (= 2 (:exit (green dir {} "create" "-f" (str selected)))))))

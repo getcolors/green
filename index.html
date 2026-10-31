@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>green — specification</title>
-<meta name="description" content="Specification of green, the canonical Clojure/Babashka colour of the getcolors workflow SDKs: steps as opts -> opts, wire-fn graphs, fan-out and joins, layered advice, YAML desired state with COLORS_PAR_* overlay.">
+<meta name="description" content="Specification of green, the canonical Clojure/Babashka colour of the getcolors workflow SDKs: steps as opts -> opts, wire-fn graphs, fan-out and joins, subworkflows, layered advice, YAML desired state with COLORS_PAR_* overlay.">
 <link rel="icon" href="https://www.getcolors.ai/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -111,8 +111,9 @@
 
 <main>
 <p class="eyebrow">Workflow SDK · Clojure / Babashka</p>
-<h1>green<span class="v">specification · 2026-10-29</span></h1>
+<h1>green<span class="v">specification · 2026-10-31</span></h1>
 <p class="lede">Coding agents write deployment code directly. Terraform and Ansible existed because hand-writing cloud automation was too slow and too fragile; an agent now writes the steps that call cloud CLIs and APIs itself. <strong>The colors are the foundation for that code</strong>: three workflow SDKs — green (Clojure), <a href="https://getcolors.github.io/red/">red</a> (TypeScript) and <a href="https://getcolors.github.io/blue/">blue</a> (Python) — sharing one model.</p>
+<p><strong>DAGs, subworkflows and advice</strong> form the reusable core. Applications own their CLI, validation, planning, reporting and persistent recovery journal. Configuration helpers parse YAML/EDN and overlay environment values explicitly.</p>
 <p>green is the canonical colour. Build your own package on it, or start from <a href="https://github.com/pocketcontext/pocketdeploy">PocketDeploy</a>, the starter package built on blue. green has no OpenTofu or Ansible integration any more: OpenTofu and Ansible support was removed on 2026-10-29, and steps call the tools they need directly.</p>
 <p class="links"><a href="https://github.com/getcolors/green">Source</a><a href="docco.html">Source tour (Docco)</a><a href="https://www.getcolors.ai/">www.getcolors.ai</a></p>
 
@@ -127,8 +128,6 @@
   <li><a href="#composition">Composition</a></li>
   <li><a href="#advice">Advice</a></li>
   <li><a href="#config">YAML desired state and COLORS_PAR_*</a></li>
-  <li><a href="#helpers">Dry-run, progress, lifecycle</a></li>
-  <li><a href="#cli">CLI and the ./green launcher</a></li>
   <li><a href="#example">The example</a></li>
   <li><a href="#testing">Testing</a></li>
   <li><a href="#api">API index</a></li>
@@ -153,9 +152,6 @@
 <tr><td><code>:green/exit</code></td><td>steps, engine</td><td>0 = success (missing means 0), &gt;0 = failure.</td></tr>
 <tr><td><code>:green/err</code></td><td>steps, engine</td><td>Human-readable error text.</td></tr>
 <tr><td><code>:green/trace</code></td><td>engine</td><td>Stack trace when a step threw.</td></tr>
-<tr><td><code>:green/event</code></td><td>CLI</td><td>Lifecycle event keyword from the first argument (<code>:create</code>, <code>:delete</code>, ...).</td></tr>
-<tr><td><code>:green/dry-run</code></td><td>CLI</td><td><code>true</code> with <code>--dry-run</code>.</td></tr>
-<tr><td><code>:green/state-file</code></td><td>CLI</td><td>Absolute path of the desired-state file, for resolving relative paths.</td></tr>
 <tr><td><code>:green/step</code></td><td>engine</td><td>Name of the step about to run (visible to advice).</td></tr>
 <tr><td><code>:green/branches</code></td><td>engine</td><td>Vector of branch results given to a join step, or attached to a collapsed fork.</td></tr>
 </table></div>
@@ -179,9 +175,9 @@
               :end     nil            ; optional slice boundary: runs, then stops
               :wire-fn wire-fn        ; required
               :next-fn nil})          ; optional</code></pre>
-<p><code>(wire-fn step run-opts) -&gt; [step-fn &amp; next-steps]</code> is the static graph for a run. <code>run-opts</code> is the initial opts of the run, constant for its duration, so the graph may depend on stable inputs such as <code>:green/event</code>:</p>
+<p><code>(wire-fn step run-opts) -&gt; [step-fn &amp; next-steps]</code> is the static graph for a run. <code>run-opts</code> is the initial opts of the run, constant for its duration, so the graph may depend on stable inputs such as <code>:hello/event</code>:</p>
 <pre><code>(defn wire-fn [step run-opts]
-  (case [(:green/event run-opts) step]
+  (case [(:hello/event run-opts) step]
     [:create :hello/start]  [start-step :hello/uname :hello/write]
     [:create :hello/uname]  [uname-step :hello/check]
     [:create :hello/write]  [write-step :hello/check]
@@ -210,7 +206,7 @@
 <p>A join step typically merges its branches: <code>(apply merge opts (:green/branches opts))</code>.</p>
 
 <h2 id="composition">6. Composition</h2>
-<p><code>(wf/step sub-workflow {:in-fn f :out-fn g})</code> turns a whole workflow into an ordinary step: wire it, advise it, fan it out. <code>:in-fn</code> shapes the opts entering the sub-workflow; <code>:out-fn (fn [opts sub-result] ...)</code> merges the result back (default: the sub-result is the step's result). Its <code>:green/exit</code> propagates. A custom <code>:in-fn</code> should carry ambient keys such as <code>:green/event</code> and <code>:green/dry-run</code> if the sub-workflow needs them.</p>
+<p><code>(wf/step sub-workflow {:in-fn f :out-fn g})</code> turns a whole workflow into an ordinary step: wire it, advise it, fan it out. <code>:in-fn</code> shapes the opts entering the sub-workflow; <code>:out-fn (fn [opts sub-result] ...)</code> merges the result back (default: the sub-result is the step's result). With the default output adapter its <code>:green/exit</code> propagates. A custom <code>:out-fn</code> must preserve or explicitly handle the child failure; replacing its result can discard it. A custom <code>:in-fn</code> should carry ambient keys such as <code>:hello/event</code> and <code>:hello/dry-run</code> if the sub-workflow needs them.</p>
 
 <h2 id="advice">7. Advice</h2>
 <p>Emacs <code>nadvice</code>-style wrappers, attached by id. <code>(wf/advice-add wf step how id f [props])</code> targets one step; <code>(wf/advice-add-all wf how id f [props])</code> every step. <code>advice-remove</code> and <code>advice-remove-all</code> remove by id; re-adding an id replaces it.</p>
@@ -242,60 +238,53 @@ greeting-file: work/hello.txt</code></pre>
 <p><code>cli/read-pars</code> overlays every <code>COLORS_PAR_&lt;UPPER_SNAKE&gt;</code> environment variable onto the matching flat key: <code>COLORS_PAR_DO_TOKEN</code> → <code>:do-token</code>. Values are coerced to the type of the value they replace (booleans and integers), and applying the overlay twice changes nothing. <code>cli/par-name</code> maps a key back to its variable name. The prefix is shared by all three colours.</p>
 <div class="note"><strong>Secrets</strong> never go in the desired-state file. Keys are kebab-case; credentials are supplied only as <code>COLORS_PAR_*</code> variables.</div>
 
-<h2 id="helpers">9. Dry-run, progress, lifecycle</h2>
-<h3>green.dry-run</h3>
-<p><code>(dry-run/advise wf steps)</code> attaches <code>:around</code> advice with id <code>:green.dry-run/skip</code> to each named step. With <code>:green/dry-run</code> set, the step prints <code>dry-run: would run &lt;step&gt; (&lt;event&gt;)</code> and returns exit 0 without running. Declare it last so it is outermost. Unadvised read-only steps still run.</p>
-<h3>green.progress</h3>
-<p><code>(progress/advise wf)</code> adds all-steps <code>:around</code> advice (id <code>:green.progress/progress</code>) printing <code>&gt;&gt;&gt; step (event)</code> on entry and <code>&lt;&lt;&lt; step (Nms)</code> on exit. Output is synchronised across parallel branches.</p>
-<h3>green.lifecycle</h3>
-<p><code>(lifecycle/preflight opts {:defaults :overlay :validators :after-validate} [env])</code> merges defaults under opts, applies the overlay (typically <code>cli/read-pars</code>), then runs every validator <code>(fn [opts env context])</code> in order, collecting the error strings it returns. Any error yields exit 2 with all errors joined; otherwise <code>after-validate</code> runs, or exit 0 is set. <code>context</code> carries <code>:event</code> and <code>:real?</code> (<code>lifecycle/real-run?</code>, false under dry-run).</p>
+<p>The <code>green.cli</code> namespace retains its name for these three helpers; it no longer provides argument parsing or process execution. Applications choose file paths, defaults and validation themselves. Engine slicing remains available through <code>:start</code> and <code>:end</code>.</p>
+<p>Green is not on Clojars. External packages use an explicit published git SHA:</p>
+<pre><code>io.github.getcolors/green {:git/url "https://github.com/getcolors/green.git"
+                           :git/sha "REPLACE_WITH_COMMIT_SHA"}</code></pre>
 
-<h2 id="cli">10. CLI and the ./green launcher</h2>
-<pre><code>./green &lt;event&gt; [-f|--file green.yml] [--start step] [--end step] [--dry-run]</code></pre>
-<p><code>(cli/run-cli workflow args config)</code> parses arguments (unknown options are rejected), reads the desired-state file, stamps <code>:green/state-file</code>, overlays <code>COLORS_PAR_*</code>, stamps <code>:green/event</code> and <code>:green/dry-run</code>, applies <code>--start</code>/<code>--end</code> as a graph slice, and returns the final opts. Usage and file errors return exit 2. <code>config</code> accepts <code>:default-file</code> (default <code>green.yml</code>), <code>:search-parents</code> (find the nearest file upwards with <code>cli/find-up</code>) and <code>:allowed-events</code>. <code>(cli/exec ...)</code> does the same, prints <code>:green/err</code>/<code>:green/trace</code> to stderr and exits with <code>:green/exit</code>.</p>
-<p>A package's <code>./green</code> is a babashka script: it adds green as a git dependency pinned by <code>:git/sha</code> (or a working tree via <code>GREEN_LIB_ROOT</code>), defines its workflow, and calls <code>cli/exec</code>. green is not on Clojars.</p>
-<pre><code>((requiring-resolve 'babashka.deps/add-deps)
- {:deps {'io.github.getcolors/green
-         {:git/url "https://github.com/getcolors/green.git"
-          :git/sha "&lt;commit&gt;"}}})
-(require '[green.cli :as cli] '[green.workflow :as wf])
-;; ... steps, wire-fn, workflow ...
-(cli/exec workflow *command-line-args*
-          {:default-file "green.yml" :search-parents true
-           :allowed-events [:create :delete]})</code></pre>
-<p><code>(cli/stage-dir opts tool [{:default-workdir :default-profile :state-file-key}])</code> resolves <code>&lt;state-file dir&gt;/&lt;:workdir or .colors&gt;/&lt;:profile&gt;/&lt;tool&gt;</code> for packages that render files; absolute workdirs are kept.</p>
-
-<h2 id="example">11. The example</h2>
-<p><a href="https://github.com/getcolors/green/tree/main/examples/hello"><code>examples/hello</code></a> is a complete package in three files: the <code>green</code> launcher (holding the workflow), <code>green.yml</code>, and <code>test/hello/launcher_test.clj</code>. It is offline and harmless.</p>
-<pre><code>:hello/start (lifecycle preflight)
-   ├─ :hello/uname   uname -s            (read-only, runs under --dry-run)
-   └─ :hello/write   write greeting file
+<h2 id="example">9. The example</h2>
+<p><a href="https://github.com/getcolors/green/tree/main/examples/hello"><code>examples/hello</code></a> is a complete package in three files: the <code>green</code> launcher (holding the workflow), <code>green.yml</code>, and <code>test/hello/launcher_test.clj</code>. It runs offline and writes only the configured greeting file. Tests use temporary directories. Its CLI, validation, reporting and dry-run advice are application code.</p>
+<pre><code>:hello/start (application validation)
+   ├─ :hello/uname      uname -s
+   └─ :hello/artifact   subworkflow: write → verify
         ↘ ↙
-   :hello/check      join: read the file back and verify</code></pre>
+   :hello/check         join and report</code></pre>
+<p>The parent installs reporting advice for every step, including the artifact subworkflow's internal steps. It also installs application-defined skip advice on write, verify, check and remove. Step names are namespaced; inherited advice matches those names at any depth.</p>
+<pre><code>(def artifact-workflow
+  (wf/workflow {:start :hello/write
+                :wire-fn (fn [step _]
+                           (case step
+                             :hello/write [write-step :hello/verify]
+                             :hello/verify [verify-step]))}))
+
+;; Wire (wf/step artifact-workflow) like any other step.
+(defn report-step [inner opts]
+  (let [result (inner opts)]
+    (locking *out* (println "completed" (:green/step opts)))
+    result))
+(wf/advice-add-all workflow :around :hello/report report-step)</code></pre>
 <pre><code>cd examples/hello
 ./green create --dry-run
 ./green create                         # hello, world (Linux)
 COLORS_PAR_NAME=agent ./green create   # hello, agent (Linux)
 ./green delete</code></pre>
 
-<h2 id="testing">12. Testing</h2>
+<h2 id="testing">10. Testing</h2>
 <pre><code>bb test                # Babashka
 clojure -X:test        # JVM (cognitect test-runner)
 clojure -T:build jar   # target/green-0.1.0.jar
 bb docco               # regenerate docco.html</code></pre>
-<p>Steps are plain functions and <code>cli/run-cli</code> never exits, so packages test their workflows in-process with <code>wf/run</code> or <code>run-cli</code>, using <code>:override</code> advice to stub side effects. The example's test drives the real launcher as a subprocess (needs <code>bb</code> on <code>PATH</code>). CI runs both suites and builds the jar.</p>
+<p>Steps are plain functions, so packages test workflows in-process with <code>wf/run</code>, using <code>:override</code> advice to stub side effects. The example's test drives the real launcher as a subprocess (needs <code>bb</code> on <code>PATH</code>). CI runs both suites and builds the jar.</p>
 
-<h2 id="api">13. API index</h2>
+<h2 id="api">11. API index</h2>
 <div class="table-wrap"><table>
 <tr><th>Namespace</th><th>Public vars</th></tr>
 <tr><td><code>green.workflow</code></td><td><code>workflow</code>, <code>run</code>, <code>step</code>, <code>failed?</code>, <code>advice-add</code>, <code>advice-remove</code>, <code>advice-add-all</code>, <code>advice-remove-all</code>, <code>advice-plan</code></td></tr>
 <tr><td><code>green.advice</code></td><td><code>hows</code>, <code>add</code>, <code>remove-id</code>, <code>add-global</code>, <code>remove-global-id</code>, <code>merge-entries</code>, <code>merge-registry</code>, <code>ordered</code>, <code>compose</code></td></tr>
-<tr><td><code>green.cli</code></td><td><code>run-cli</code>, <code>exec</code>, <code>read-state</code>, <code>read-pars</code>, <code>par-name</code>, <code>find-up</code>, <code>stage-dir</code>, <code>usage</code></td></tr>
-<tr><td><code>green.lifecycle</code></td><td><code>preflight</code>, <code>real-run?</code></td></tr>
-<tr><td><code>green.dry-run</code></td><td><code>advise</code>, <code>advice</code></td></tr>
-<tr><td><code>green.progress</code></td><td><code>advise</code>, <code>progress</code></td></tr>
+<tr><td><code>green.cli</code></td><td><code>read-state</code>, <code>read-pars</code>, <code>par-name</code></td></tr>
 </table></div>
-<p>Dependencies: Clojure, <code>org.babashka/cli</code> and <code>org.yamlstar/yamlstar</code> (exactly 0.1.17). The <a href="docco.html">source tour</a> walks every form.</p>
+<p>Dependencies: Clojure and <code>org.yamlstar/yamlstar</code> (exactly 0.1.17). The <a href="docco.html">source tour</a> walks every form.</p>
 </main>
 
 <footer class="foot">

@@ -3,7 +3,7 @@
 
   - wire-fn: (step run-opts) -> [fn & next-steps] — the static
     happy-path graph for this run. It may depend on stable run-level inputs
-    such as :green/event. Multiple successors run in parallel.
+    such as :app/event. Multiple successors run in parallel.
   - next-fn (optional): (next-fn step default-next opts) -> seq of
     [next-step opts] pairs — dynamic routing, error branching, fan-out.
   - Steps report outcome via :green/exit (0 ok, >0 error), :green/err,
@@ -435,7 +435,7 @@
   "Turn a workflow into a step function (opts -> opts), so workflows compose
   into higher-level workflows: wire the result like any other step, advise
   it, fan it out. The sub-workflow's :green/exit propagates naturally, and
-  ambient keys like :green/event and :green/dry-run flow in with opts.
+  application keys like :app/event and :app/dry-run flow in with opts.
 
   The enclosing run's advice is inherited: the nested run merges it over
   the sub-workflow's own (see the ns docstring). The engine re-stamps the
